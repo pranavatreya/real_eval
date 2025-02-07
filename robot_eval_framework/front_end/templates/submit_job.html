@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Submit New Evaluation Job</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h2>Submit a New Evaluation Job</h2>
+  <p>Placeholder form for submitting a new policy or new evaluation request.</p>
+  <!-- In a real system, you'd have forms or an actual UI to register policies -->
+  <form id="policyForm">
+    <label for="policyAddr">Policy Address:</label>
+    <input type="text" id="policyAddr" name="policyAddr"><br><br>
+
+    <label for="evalEnv">Evaluation Environment:</label>
+    <input type="text" id="evalEnv" name="evalEnv"><br><br>
+
+    <label for="userId">User ID:</label>
+    <input type="text" id="userId" name="userId"><br><br>
+
+    <button type="button" onclick="submitPolicy()">Submit</button>
+  </form>
+
+  <script>
+  async function submitPolicy() {
+    let policyAddr = document.getElementById("policyAddr").value;
+    let evalEnv = document.getElementById("evalEnv").value;
+    let userId = document.getElementById("userId").value;
+
+    let response = await fetch("http://localhost:8000/register_policy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        policy_addr: policyAddr,
+        eval_environment: evalEnv,
+        user_id: userId
+      })
+    });
+    let data = await response.json();
+    alert("Policy registered: " + JSON.stringify(data));
+  }
+  </script>
+</body>
+</html>
