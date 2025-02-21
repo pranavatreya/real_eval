@@ -1,6 +1,0 @@
-fastapi
-uvicorn
-requests
-google-cloud-firestore
-pydantic
-jinja2
