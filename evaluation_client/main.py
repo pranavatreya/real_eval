@@ -129,6 +129,9 @@ def main(base_image="left_image"):
 
         # We do two evaluations, one for A, one for B
         for policy_label, policy_ip in [("A", policyA_ip), ("B", policyB_ip)]:
+            print(f"Starting eval of policy {policy_label}...")
+            time.sleep(2)
+
             # Setup for the rollout
             max_timesteps = 600
             open_loop_horizon = 8
