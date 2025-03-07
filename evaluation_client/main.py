@@ -12,7 +12,12 @@ import image_tools, websocket_client_policy
 
 from moviepy.editor import ImageSequenceClip
 
-from r2d2.robot_env import RobotEnv
+try:
+    from droid.robot_env import RobotEnv
+except ModuleNotFoundError:
+    # r2d2 is the old name for the package
+    from r2d2.robot_env import RobotEnv
+
 
 import faulthandler
 faulthandler.enable()
