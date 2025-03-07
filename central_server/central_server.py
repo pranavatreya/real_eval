@@ -71,7 +71,7 @@ def get_gcs_client():
     """
     return storage.Client()
 
-# Ensure DB schema is created if not already
+# Ensure DB schema is created, in case it currently isn't
 Base.metadata.create_all(engine)
 
 # 4) Endpoints
@@ -85,7 +85,6 @@ def get_policies_to_compare():
     # Create a unique session_id (UUID)
     session_uuid = uuid.uuid4()
 
-    # For demonstration, we just set these IPs to the same values each time.
     #policyA_ip = "10.103.116.247:8000"
     #policyB_ip = "10.103.116.247:8000"
 
@@ -110,7 +109,7 @@ def get_policies_to_compare():
     finally:
         db.close()
 
-    # Optionally create or store a metadata file in GCS
+    # We can also add metadata to GCS, albeit this is redundant
     try:
         storage_client = get_gcs_client()
         bucket = storage_client.bucket(BUCKET_NAME)
@@ -239,14 +238,12 @@ def terminate_session():
             return jsonify({"error": f"No session with ID {form_session_id}"}), 404
 
         # If we want to do anything final with the session here, we can do it...
-        # e.g. mark it as closed, or keep track of "end_time"
 
         # For example, we could store a "closed_at" field if added to the schema:
         # session_obj.closed_at = datetime.datetime.utcnow()
         # db.commit()
 
-        # In many use-cases we do not actually delete the session from the DB,
-        # because we want records. But we could:
+        # We could also delete the session, but usually this is not done:
         # db.delete(session_obj)
         # db.commit()
 

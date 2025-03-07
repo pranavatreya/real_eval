@@ -49,26 +49,15 @@ def resize_with_pad(images: np.ndarray, height: int, width: int, method=Image.BI
     ])
     return resized.reshape(*original_shape[:-3], *resized.shape[-3:])
 
-def _make_request(policy_ip: str, endpoint: str, element):
-    """
-    Contact the policy server
-    """
-    url = f"http://{policy_ip}{endpoint}"
-    response = requests.post(url, data=pickle.dumps(element))
-    if response.status_code != 200:
-        raise Exception(response.text)
-    action = pickle.loads(response.content)
-    return action["actions"]
-
 def extract_observation(obs_dict):
     image_observations = obs_dict["image"]
     left_image, right_image, wrist_image = None, None, None
     for key in image_observations.keys():
-        if "24259877" in key and "left" in key:
+        if "24259877" in key and "left" in key: # modify camera ID to match setup
             left_image = image_observations[key]
-        elif "24514023" in key and "left" in key:
+        elif "24514023" in key and "left" in key: # modify camera ID to match setup
             right_image = image_observations[key]
-        elif "13062452" in key and "left" in key:
+        elif "13062452" in key and "left" in key: # modify camera ID to match setup
             wrist_image = image_observations[key]
     # Drop alpha dimension
     left_image = left_image[..., :3]
