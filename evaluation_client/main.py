@@ -8,6 +8,7 @@ import datetime
 import os
 import time
 import io
+import image_tools, websocket_client_policy
 
 from moviepy.editor import ImageSequenceClip
 
@@ -129,6 +130,10 @@ def main(base_image="left_image"):
 
         # We do two evaluations, one for A, one for B
         for policy_label, policy_ip in [("A", policyA_ip), ("B", policyB_ip)]:
+            # Initialize policy client
+            ip, port = policy_ip.split(":")
+            policy_client = websocket_client_policy.WebsocketClientPolicy(ip, port)
+
             print(f"Starting eval of policy {policy_label}...")
             time.sleep(2)
 
@@ -155,25 +160,24 @@ def main(base_image="left_image"):
                     if actions_from_chunk_completed == 0 or actions_from_chunk_completed >= open_loop_horizon:
                         actions_from_chunk_completed = 0
                         request_data = {
-                            f"observation/exterior_image_1_left": simplejpeg.encode_jpeg(
-                                resize_with_pad(curr_obs[base_image], 224, 224)
-                            ),
-                            "observation/exterior_image_1_left_mask": np.array(True),
-                            "observation/wrist_image_left": simplejpeg.encode_jpeg(
-                                resize_with_pad(curr_obs["wrist_image"], 224, 224)
-                            ),
-                            "observation/wrist_image_left_mask": np.array(True),
+                            f"observation/exterior_image_1_left": image_tools.resize_with_pad(curr_obs[base_image], 224, 224),
+                            #"observation/exterior_image_1_left_mask": np.array(True),
+                            "observation/wrist_image_left": image_tools.resize_with_pad(curr_obs["wrist_image"], 224, 224),
+                            #"observation/wrist_image_left_mask": np.array(True),
                             "observation/joint_position": curr_obs["joint_position"],
                             "observation/gripper_position": curr_obs["gripper_position"],
-                            "raw_text": lang_command,
+                            #"raw_text": lang_command,
+                            "prompt": lang_command,
                         }
-                        pred_action_chunk = _make_request(policy_ip, "/infer", request_data)
+                        #pred_action_chunk = _make_request(policy_ip, "/infer", request_data)
+                        pred_action_chunk = policy_client.infer(request_data)["actions"]
                         pred_action_chunk = pred_action_chunk[:8]
                         assert pred_action_chunk.shape == (8, 8)
 
                     # Select current action to execute
                     action = pred_action_chunk[actions_from_chunk_completed]
                     actions_from_chunk_completed += 1
+                    action = np.array(action.tolist()) # to remove read-only restriction
 
                     # binarize gripper
                     if action[-1] > 0.5:
