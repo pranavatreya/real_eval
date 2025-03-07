@@ -86,8 +86,11 @@ def get_policies_to_compare():
     session_uuid = uuid.uuid4()
 
     # For demonstration, we just set these IPs to the same values each time.
-    policyA_ip = "10.103.116.247:8000"
-    policyB_ip = "10.103.116.247:8000"
+    #policyA_ip = "10.103.116.247:8000"
+    #policyB_ip = "10.103.116.247:8000"
+
+    policyA_ip = "128.32.175.81:8000"
+    policyB_ip = "128.32.175.81:8000"
 
     # Insert into DB
     db = SessionLocal()
