@@ -63,9 +63,9 @@ def extract_observation(obs_dict):
         # https://github.com/droid-dataset/droid/blob/main/droid/camera_utils/camera_readers/zed_camera.py#L142
         if setting.cameras["left"] in key and "left" in key:
             left_image = image_observations[key]
-        elif setting.cameras["right"] in key and "right" in key:
+        elif setting.cameras["right"] in key and "left" in key:
             right_image = image_observations[key]
-        elif setting.cameras["wrist"] in key:
+        elif setting.cameras["wrist"] in key and "left" in key:
             wrist_image = image_observations[key]
     # Drop alpha dimension
     left_image = left_image[..., :3]
