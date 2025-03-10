@@ -1,18 +1,24 @@
-import simplejpeg
-from PIL import Image
-import numpy as np
-import requests
-import pickle
-from tqdm import tqdm
+import argparse
 import datetime
-import os
-import time
 import io
-import image_tools, websocket_client_policy
+import os
+import requests
+import time
 
 from moviepy.editor import ImageSequenceClip
+from PIL import Image
+from tqdm import tqdm
+import numpy as np
 
-from r2d2.robot_env import RobotEnv
+from eval_config import EvalConfig, load_config
+from websocket_client_policy import WebsocketClientPolicy
+import image_tools
+
+try:
+    from droid.robot_env import RobotEnv
+except ModuleNotFoundError:
+    # r2d2 is the old name for the package
+    from r2d2.robot_env import RobotEnv
 
 import faulthandler
 faulthandler.enable()
@@ -53,11 +59,13 @@ def extract_observation(obs_dict):
     image_observations = obs_dict["image"]
     left_image, right_image, wrist_image = None, None, None
     for key in image_observations.keys():
-        if "24259877" in key and "left" in key: # modify camera ID to match setup
+        # According to
+        # https://github.com/droid-dataset/droid/blob/main/droid/camera_utils/camera_readers/zed_camera.py#L142
+        if setting.cameras["left"] in key and "left" in key:
             left_image = image_observations[key]
-        elif "24514023" in key and "left" in key: # modify camera ID to match setup
+        elif setting.cameras["right"] in key and "left" in key:
             right_image = image_observations[key]
-        elif "13062452" in key and "left" in key: # modify camera ID to match setup
+        elif setting.cameras["wrist"] in key and "left" in key:
             wrist_image = image_observations[key]
     # Drop alpha dimension
     left_image = left_image[..., :3]
@@ -88,7 +96,7 @@ def extract_observation(obs_dict):
 
 # ========== MAIN EVALUATION CODE ==========
 
-def main(base_image="left_image"):
+def main():
     """
     1) Query the central orchestrating server for a session and two policy IPs.
     2) Evaluate them in an A/B fashion for each user prompt.
@@ -96,13 +104,15 @@ def main(base_image="left_image"):
     4) Continue until user is done with all of his/her evals.
     5) Terminate the session on the central server associated with this eval.
     """
+    base_image: str = setting.third_person_camera
+    logging_server_ip: str = setting.logging_server_ip
 
-    logging_server_ip = "128.32.175.81:5000"
     r = requests.get(f"http://{logging_server_ip}/get_policies_to_compare")
     if not r.ok:
         print("Failed to get policies to compare from logging server!")
         print(r.status_code, r.text)
         return
+
     session_info = r.json()
     session_id = session_info["session_id"]
     policyA_ip = session_info["policyA"]  # e.g. "10.103.116.247:8000"
@@ -121,7 +131,7 @@ def main(base_image="left_image"):
         for policy_label, policy_ip in [("A", policyA_ip), ("B", policyB_ip)]:
             # Initialize policy client
             ip, port = policy_ip.split(":")
-            policy_client = websocket_client_policy.WebsocketClientPolicy(ip, port)
+            policy_client = WebsocketClientPolicy(ip, port)
 
             print(f"Starting eval of policy {policy_label}...")
             time.sleep(2)
@@ -251,9 +261,9 @@ def main(base_image="left_image"):
 
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 1:
-        base_img_arg = sys.argv[1]
-    else:
-        base_img_arg = "left_image"
-    main(base_img_arg)
+    parser = argparse.ArgumentParser(description="Load evaluation config YAML file.")
+    parser.add_argument("config_path", type=str, help="Path to the evaluation config YAML file")
+    args = parser.parse_args()
+
+    setting: EvalConfig = load_config(args.config_path)
+    main()

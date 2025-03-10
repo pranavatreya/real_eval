@@ -1,0 +1,9 @@
+logging_server_ip: 128.32.175.81:5000
+third_person_camera: left_image
+cameras:
+  - name: left
+    id: 24259877
+  - name: right
+    id: 24514023
+  - name: wrist
+    id: 13062452
