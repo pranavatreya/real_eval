@@ -2,6 +2,7 @@ import argparse
 import datetime
 import io
 import os
+
 import requests
 import time
 
@@ -59,26 +60,34 @@ def extract_observation(obs_dict):
     image_observations = obs_dict["image"]
     left_image, right_image, wrist_image = None, None, None
     for key in image_observations.keys():
-        # According to
-        # https://github.com/droid-dataset/droid/blob/main/droid/camera_utils/camera_readers/zed_camera.py#L142
+        # Check for "left" to index the left camera stream of each
+        # ZED stereo cameras, which have two camera streams
         if setting.cameras["left"] in key and "left" in key:
             left_image = image_observations[key]
         elif setting.cameras["right"] in key and "left" in key:
             right_image = image_observations[key]
         elif setting.cameras["wrist"] in key and "left" in key:
             wrist_image = image_observations[key]
-    # Drop alpha dimension
-    left_image = left_image[..., :3]
-    right_image = right_image[..., :3]
-    wrist_image = wrist_image[..., :3]
-    # Convert to RGB
-    left_image = np.concatenate([left_image[...,2:], left_image[...,1:2], left_image[..., :1]], axis=-1)
-    right_image = np.concatenate([right_image[...,2:], right_image[...,1:2], right_image[..., :1]], axis=-1)
-    wrist_image = np.concatenate([wrist_image[...,2:], wrist_image[...,1:2], wrist_image[..., :1]], axis=-1)
-    # Resize
-    left_image = np.array(Image.fromarray(left_image).resize((512, 288), resample=Image.LANCZOS))
-    right_image = np.array(Image.fromarray(right_image).resize((512, 288), resample=Image.LANCZOS))
-    wrist_image = np.array(Image.fromarray(wrist_image).resize((512, 288), resample=Image.LANCZOS))
+
+    # Process the images by:
+    # 1) Dropping the alpha dimension
+    # 2) Converting to RGB
+    # 3) Resizing to 512x288
+    # Note that images can be None if the camera is not active
+    if left_image is not None:
+        left_image = left_image[..., :3]
+        left_image = np.concatenate([left_image[..., 2:], left_image[..., 1:2], left_image[..., :1]], axis=-1)
+        left_image = np.array(Image.fromarray(left_image).resize((512, 288), resample=Image.LANCZOS))
+
+    if right_image is not None:
+        right_image = right_image[..., :3]
+        right_image = np.concatenate([right_image[...,2:], right_image[...,1:2], right_image[..., :1]], axis=-1)
+        right_image = np.array(Image.fromarray(right_image).resize((512, 288), resample=Image.LANCZOS))
+
+    if wrist_image is not None:
+        wrist_image = wrist_image[..., :3]
+        wrist_image = np.concatenate([wrist_image[..., 2:], wrist_image[..., 1:2], wrist_image[..., :1]], axis=-1)
+        wrist_image = np.array(Image.fromarray(wrist_image).resize((512, 288), resample=Image.LANCZOS))
 
     robot_state = obs_dict["robot_state"]
     cartesian_position = np.array(robot_state["cartesian_position"])

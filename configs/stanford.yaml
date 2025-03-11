@@ -1,9 +1,9 @@
 logging_server_ip: 128.32.175.81:5000
 third_person_camera: left_image
+
+# Does not use the second external right camera.
 cameras:
   - name: left
-    id: 24259877
-  - name: right
-    id: 24514023
+    id: 25916956
   - name: wrist
-    id: 13062452
+    id: 18650758
