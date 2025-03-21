@@ -151,8 +151,8 @@ class EpisodeModel(Base):
 # 3) Flask App Setup
 app = Flask(__name__)
 
-BUCKET_NAME = "rail-tpus-pranav"
-BUCKET_PREFIX = "real_eval"
+BUCKET_NAME = "distributed_robot_eval"
+BUCKET_PREFIX = "evaluation_data"
 
 def get_gcs_client():
     return storage.Client()
@@ -197,7 +197,7 @@ def cleanup_stale_sessions():
     finally:
         db.close()
 
-def is_policy_server_alive(ip_address, port, timeout=3.0):
+def is_policy_server_alive(ip_address, port, timeout=3.0): # TODO: make this function call the correct endpoint
     """
     Try to ping the policy server with a simple GET or other minimal request.
     Returns True if we got a 200, otherwise False.
@@ -228,7 +228,7 @@ def get_policies_to_compare():
     eval_location = request.args.get("eval_location", "Berkeley")
     evaluator_name = request.args.get("evaluator_name", "John Doe")
     robot_name = request.args.get("robot_name", "DROID")
-    evaluation_notes = request.args.get("evaluation_notes", "")
+    evaluation_notes = request.args.get("evaluation_notes", "") # TODO: evaluation_notes should be passed in at the termination of a session, not at the beginning (for now we can assume it's empty)
 
     # 1) Clean up stale sessions
     cleanup_stale_sessions()
@@ -248,14 +248,15 @@ def get_policies_to_compare():
 
         chosen = []
         for pol in candidates:
-            # Check if policy server is up
-            alive = is_policy_server_alive(pol.ip_address, pol.port)
-            if not alive:
-                # Mark IP/port = None => policy no longer valid for picks
-                pol.ip_address = None
-                pol.port = None
-                db.commit()
-                continue
+            # TODO: uncomment once we have a ping endpoint
+            # # Check if policy server is up
+            # alive = is_policy_server_alive(pol.ip_address, pol.port)
+            # if not alive:
+            #     # Mark IP/port = None => policy no longer valid for picks
+            #     pol.ip_address = None
+            #     pol.port = None
+            #     db.commit()
+            #     continue
 
             # If alive, we pick it
             chosen.append(pol)
@@ -397,8 +398,8 @@ def upload_eval_data():
 
         # 2) Upload up to 3 videos + 1 npz
         #    We'll store them as separate keys in the GCS bucket:
-        #    e.g. real_eval/<session_uuid>/<policy_name>_<timestamp>_left.mp4
-        #         real_eval/<session_uuid>/<policy_name>_<timestamp>_npz.npz
+        #    e.g. evaluation_data/<session_uuid>/<policy_name>_<timestamp>_left.mp4
+        #         evaluation_data/<session_uuid>/<policy_name>_<timestamp>_npz.npz
         storage_client = get_gcs_client()
         bucket = storage_client.bucket(BUCKET_NAME)
 
