@@ -64,11 +64,11 @@ def extract_observation(obs_dict, setting):
     # The user’s config file may define which cameras correspond to 'left','right','wrist'
     # e.g. setting.cameras["left"] might be "24259877", etc.
     for key in image_observations.keys():
-        if setting.cameras["left"] in key and "left" in key:
+        if str(setting.cameras["left"]) in key and "left" in key:
             left_image = image_observations[key]
-        elif setting.cameras["right"] in key and "left" in key:
+        elif str(setting.cameras["right"]) in key and "left" in key:
             right_image = image_observations[key]
-        elif setting.cameras["wrist"] in key and "left" in key:
+        elif str(setting.cameras["wrist"]) in key and "left" in key:
             wrist_image = image_observations[key]
 
     def process_image(img):
@@ -200,18 +200,14 @@ def main():
                         # Use your function or existing code to resize
                         # For example, we might pass in:
                         request_data = {
-                            "observation": {
-                                "third_person_view": image_tools.resize_with_pad(
-                                    curr_obs[base_image], 224, 224
-                                ) if curr_obs[base_image] is not None else None,
-                                "wrist_image": image_tools.resize_with_pad(
-                                    curr_obs["wrist_image"], 224, 224
-                                ) if curr_obs["wrist_image"] is not None else None,
-                                "joint_position": curr_obs["joint_position"],
-                                "gripper_position": curr_obs["gripper_position"],
-                            },
-                            "prompt": lang_command,
-                        }
+	                    "observation/exterior_image_1_left": image_tools.resize_with_pad(
+	                        curr_obs[base_image], 224, 224
+	                    ),
+	                    "observation/wrist_image_left": image_tools.resize_with_pad(curr_obs["wrist_image"], 224, 224),
+	                    "observation/joint_position": curr_obs["joint_position"],
+	                    "observation/gripper_position": curr_obs["gripper_position"],
+	                    "prompt": lang_command,
+	                }
                         # Infer
                         result = policy_client.infer(request_data)
                         pred_action_chunk = result["actions"]
