@@ -161,7 +161,8 @@ Base.metadata.create_all(engine)
 
 # -- Utility / Cleanup: handle stale sessions --
 
-SESSION_TIMEOUT_HOURS = 4  # Example: after 4 hours, we mark an un-terminated session as "done" and free any policies
+# TODO increase back to e.g. 4 hours, and add endpoint for clearing up policies when script crashes
+SESSION_TIMEOUT_HOURS = 0.001  # Example: after 4 hours, we mark an un-terminated session as "done" and free any policies
 
 def cleanup_stale_sessions():
     """
@@ -271,6 +272,8 @@ def get_policies_to_compare():
             p.is_in_use = True
             # If it's A/B, we also increment times_in_ab_eval
             if eval_type == "A/B":
+                if p.times_in_ab_eval is None:
+                    p.times_in_ab_eval = 0
                 p.times_in_ab_eval += 1
 
         # Create the new session in DB
