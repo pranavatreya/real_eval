@@ -1,216 +1,15 @@
 import uuid
 import datetime
-import json
 import random
-import requests
 
-from flask import Flask, request, jsonify
-from google.cloud import storage
+from flask import Flask, jsonify, request, render_template_string
 
-# SQLAlchemy imports
-from sqlalchemy import (
-    create_engine, Column, Integer, String, Float, DateTime, ForeignKey,
-    Text, Boolean
-)
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-
-# 1) SQLAlchemy Setup
-DB_URL = "postgresql://centralserver:m3lxcf830x20g4@localhost:5432/real_eval"
-engine = create_engine(DB_URL, echo=False)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-# 2) Define ORM Models
-
-class PolicyModel(Base):
-    """
-    Stores info about each policy we can potentially evaluate.
-    Columns:
-        - id (PK)
-        - unique_policy_name
-        - ip_address
-        - port
-        - is_in_use
-        - elo_score
-        - times_in_ab_eval
-        - last_time_evaluated
-        - owner_name
-        - robot_arm_type
-        - created_at
-    """
-    __tablename__ = "policies"
-
-    id = Column(Integer, primary_key=True)
-    unique_policy_name = Column(String, unique=True, nullable=False)
-    ip_address = Column(String, nullable=True)
-    port = Column(Integer, nullable=True)
-    is_in_use = Column(Boolean, default=False, nullable=False)
-    elo_score = Column(Float, default=1200.0)  # Just a typical default
-    times_in_ab_eval = Column(Integer, default=0)
-    last_time_evaluated = Column(DateTime, nullable=True)
-    owner_name = Column(String, nullable=True)
-    robot_arm_type = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-
-class SessionModel(Base):
-    """
-    The top-level entity for an evaluation session.
-    Columns:
-        - id (PK)
-        - session_uuid
-        - evaluation_type ("A/B" or "single-policy")
-        - evaluation_location
-        - evaluator_name
-        - robot_name
-        - session_creation_timestamp
-        - session_completion_timestamp
-        - evaluation_notes
-
-        - policyA and policyB store references to the policy’s IP/port or unique name?
-          They might store the unique_policy_name or just text data.
-          For an A/B eval, we fill both columns; for single-policy, fill policyA only.
-    """
-    __tablename__ = "sessions"
-
-    id = Column(Integer, primary_key=True)
-    session_uuid = Column(PG_UUID(as_uuid=True), unique=True, nullable=False)
-    evaluation_type = Column(String, nullable=False)        # "A/B" or "single-policy"
-    evaluation_location = Column(String, nullable=True)
-    evaluator_name = Column(String, nullable=True)
-    robot_name = Column(String, nullable=True)
-
-    session_creation_timestamp = Column(DateTime, default=datetime.datetime.utcnow)
-    session_completion_timestamp = Column(DateTime, nullable=True)
-
-    evaluation_notes = Column(Text, nullable=True)
-
-    # Hard-coded references to two policies for an A/B session
-    policyA_name = Column(String, nullable=True)
-    policyB_name = Column(String, nullable=True)
-
-    # Relationship: one Session -> many Episodes
-    episodes = relationship(
-        "EpisodeModel", back_populates="parent_session", cascade="all, delete-orphan"
-    )
-
-class EpisodeModel(Base):
-    """
-    Each row is one rollout or "episode" within a session.
-    Columns (some are new):
-        - id (PK)
-        - session_id (FK)
-        - policy_name
-        - command
-        - binary_success (0 or 1)
-        - partial_success (0..1)
-        - duration (# timesteps)
-        - gcs_left_cam_path
-        - gcs_right_cam_path
-        - gcs_wrist_cam_path
-        - npz_file_path
-        - timestamp
-        - policy_ip
-        - policy_port
-        - third_person_camera_type (e.g. "left" or "right")
-        - third_person_camera_id (e.g. 223492)
-        - feedback (text)
-    """
-    __tablename__ = "episodes"
-
-    id = Column(Integer, primary_key=True)
-    session_id = Column(Integer, ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
-
-    policy_name = Column(String, nullable=False)
-    command = Column(Text, nullable=True)
-
-    binary_success = Column(Integer, nullable=True)  # 0 or 1
-    partial_success = Column(Float, nullable=True)   # 0.0 to 1.0
-
-    duration = Column(Integer, nullable=True)        # number of timesteps
-
-    gcs_left_cam_path = Column(String, nullable=True)
-    gcs_right_cam_path = Column(String, nullable=True)
-    gcs_wrist_cam_path = Column(String, nullable=True)
-    npz_file_path = Column(String, nullable=True)
-
-    # Which policy IP/port
-    policy_ip = Column(String, nullable=True)
-    policy_port = Column(Integer, nullable=True)
-
-    third_person_camera_type = Column(String, nullable=True)  # e.g. "left" or "right"
-    third_person_camera_id = Column(Integer, nullable=True)
-
-    feedback = Column(Text, nullable=True)
-
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
-
-    parent_session = relationship("SessionModel", back_populates="episodes")
+from database.schema import PolicyModel, SessionModel, EpisodeModel
+from database.connnection import initialize_database_connection
+from server_utils import cleanup_stale_sessions, get_gcs_client
 
 
-# 3) Flask App Setup
 app = Flask(__name__)
-
-BUCKET_NAME = "distributed_robot_eval"
-BUCKET_PREFIX = "evaluation_data"
-
-def get_gcs_client():
-    return storage.Client()
-
-Base.metadata.create_all(engine)
-
-# -- Utility / Cleanup: handle stale sessions --
-
-# TODO increase back to e.g. 4 hours, and add endpoint for clearing up policies when script crashes
-SESSION_TIMEOUT_HOURS = 0.001  # Example: after 4 hours, we mark an un-terminated session as "done" and free any policies
-
-def cleanup_stale_sessions():
-    """
-    Finds sessions that are older than SESSION_TIMEOUT_HOURS but have no
-    completion_timestamp set. Mark them as completed, and free up policies if needed.
-    """
-    db = SessionLocal()
-    cutoff = datetime.datetime.utcnow() - datetime.timedelta(hours=SESSION_TIMEOUT_HOURS)
-    try:
-        stale_sessions = db.query(SessionModel).filter(
-            SessionModel.session_completion_timestamp.is_(None),
-            SessionModel.session_creation_timestamp < cutoff
-        ).all()
-
-        for sess in stale_sessions:
-            # Mark session as completed now
-            sess.session_completion_timestamp = datetime.datetime.utcnow()
-
-            # Free up policies
-            # If policyA_name or policyB_name are not None, set them is_in_use=False
-            # in the PolicyModel
-            if sess.policyA_name:
-                polA = db.query(PolicyModel).filter_by(unique_policy_name=sess.policyA_name).first()
-                if polA and polA.is_in_use:
-                    polA.is_in_use = False
-            if sess.policyB_name:
-                polB = db.query(PolicyModel).filter_by(unique_policy_name=sess.policyB_name).first()
-                if polB and polB.is_in_use:
-                    polB.is_in_use = False
-
-        if stale_sessions:
-            db.commit()
-    finally:
-        db.close()
-
-def is_policy_server_alive(ip_address, port, timeout=3.0): # TODO: make this function call the correct endpoint
-    """
-    Try to ping the policy server with a simple GET or other minimal request.
-    Returns True if we got a 200, otherwise False.
-    """
-    if not ip_address or not port:
-        return False
-    url = f"http://{ip_address}:{port}/ping"  # Or whatever minimal endpoint
-    try:
-        r = requests.get(url, timeout=timeout)
-        return r.ok
-    except:
-        return False
 
 
 @app.route("/get_policies_to_compare", methods=["GET"])
@@ -231,10 +30,11 @@ def get_policies_to_compare():
     robot_name = request.args.get("robot_name", "DROID")
     evaluation_notes = request.args.get("evaluation_notes", "") # TODO: evaluation_notes should be passed in at the termination of a session, not at the beginning (for now we can assume it's empty)
 
-    # 1) Clean up stale sessions
-    cleanup_stale_sessions()
-
     db = SessionLocal()
+
+    # 1) Clean up stale sessions
+    cleanup_stale_sessions(database_session=db, range_in_hours=SESSION_TIMEOUT_HOURS)
+
     try:
         num_policies_needed = 2 if eval_type == "A/B" else 1
 
@@ -501,6 +301,86 @@ def terminate_session():
         db.close()
 
 
+@app.route("/leaderboard", methods=["GET"])
+def leaderboard():
+    """
+    Renders a simple page with the current leaderboard based on ELO scores.
+
+    # TODO: move all of thee HTML/CSS into a separate file for better readability and maintainability.
+    """
+    db = SessionLocal()
+    try:
+        # Get all policies from the database, ordered by elo_score descending
+        policies = db.query(PolicyModel).order_by(PolicyModel.elo_score.desc()).all()
+
+        template = '''
+        <!doctype html>
+        <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Leaderboard</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 40px; }
+              table { width: 100%; border-collapse: collapse; }
+              th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ccc; }
+              th { background-color: #f2f2f2; }
+              tr:nth-child(even) { background-color: #fafafa; }
+            </style>
+          </head>
+          <body>
+            <h1>Leaderboard</h1>
+            <table>
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Policy Name</th>
+                  <th>Elo Score</th>
+                  <th>Times in AB Eval</th>
+                  <th>Last Time Evaluated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for policy in policies %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td>{{ policy.unique_policy_name }}</td>
+                  <td>{{ policy.elo_score }}</td>
+                  <td>{{ policy.times_in_ab_eval or 0 }}</td>
+                  <td>
+                    {% if policy.last_time_evaluated %}
+                      {{ policy.last_time_evaluated.strftime("%Y-%m-%d %H:%M:%S") }}
+                    {% else %}
+                      N/A
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </body>
+        </html>
+        '''
+        return render_template_string(template, policies=policies)
+    except Exception as e:
+        return f"An error occurred: {e}", 500
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
+    # TODO: make all of these configurable via YAML
+    # 1) Initialize the database connection
+    # DB_URL = "postgresql://centralserver:m3lxcf830x20g4@localhost:5432/real_eval"
+    DB_URL = "postgresql://centralserver:m3lxcf830x20g4@34.55.101.123:5432/real_eval"
+    SessionLocal = initialize_database_connection(DB_URL)
+
+    # GCS
+    BUCKET_NAME = "distributed_robot_eval"
+    BUCKET_PREFIX = "evaluation_data"
+
+    # TODO increase back to e.g. 4 hours, and add endpoint for clearing up policies when script crashes
+    SESSION_TIMEOUT_HOURS = 0.001  # Example: after 4 hours, we mark an un-terminated session as "done" and free any policies
+
     # Run the Flask app in debug mode for development
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5500, debug=True)
