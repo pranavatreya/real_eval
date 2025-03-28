@@ -7,7 +7,7 @@ import yaml
 class EvalConfig:
     logging_server_ip: str
     third_person_camera: str
-    cameras: dict[str, int] = field(default_factory=dict)
+    cameras: dict = field(default_factory=dict)
 
 
 def load_config(config_file_path: str) -> EvalConfig:

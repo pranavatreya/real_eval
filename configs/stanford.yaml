@@ -1,4 +1,4 @@
-logging_server_ip: 128.32.175.81:5000
+logging_server_ip: 34.55.101.123:5000
 third_person_camera: left_image
 
 # Does not use the second external right camera.
