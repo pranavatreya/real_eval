@@ -3,7 +3,7 @@
 As of now, there are three components that need to be launched independently:
 1. The robot-side evaluation client `evaluation_client/main.py`
 2. The policy server (could be any server, right now using openpi_droid_dct)
-3. Central scheduling server `central_server/central_server.py`
+3. Central scheduling server `central_server/serve.py`
 
 ## Setup
 
@@ -28,3 +28,7 @@ pip install -r requirements.txt
 To run the evaluation:
 1. Add an evaluation config following the other config files in `configs/`
 2. Run `python evaluation_client/main.py <path to config file>`. For example, `python evaluation_client/main.py configs/berkeley.yaml`
+
+## Server deployment
+
+TODO: document how to deploy the server
