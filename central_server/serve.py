@@ -1,3 +1,4 @@
+import argparse
 import uuid
 import datetime
 import random
@@ -6,6 +7,8 @@ from flask import Flask, jsonify, request, render_template_string
 
 from database.schema import PolicyModel, SessionModel, EpisodeModel
 from database.connnection import initialize_database_connection
+from logger import logger
+from server_config import load_config, ServerConfig
 from server_utils import cleanup_stale_sessions, get_gcs_client
 
 
@@ -33,10 +36,10 @@ def get_policies_to_compare():
     db = SessionLocal()
 
     # 1) Clean up stale sessions
-    cleanup_stale_sessions(database_session=db, range_in_hours=SESSION_TIMEOUT_HOURS)
+    cleanup_stale_sessions(database_session=db, range_in_hours=ServerSetting.eval_session.timeout_hours)
 
     try:
-        num_policies_needed = 2 if eval_type == "A/B" else 1
+        num_policies_needed: int = 2 if eval_type == "A/B" else 1
 
         # Query for candidate policies
         candidates = db.query(PolicyModel).filter(
@@ -204,7 +207,7 @@ def upload_eval_data():
         #    e.g. evaluation_data/<session_uuid>/<policy_name>_<timestamp>_left.mp4
         #         evaluation_data/<session_uuid>/<policy_name>_<timestamp>_npz.npz
         storage_client = get_gcs_client()
-        bucket = storage_client.bucket(BUCKET_NAME)
+        bucket = storage_client.bucket(ServerSetting.gcs_bucket_name)
 
         def upload_file_if_present(file_key: str, extension: str):
             """
@@ -214,7 +217,7 @@ def upload_eval_data():
             f = request.files.get(file_key, None)
             if not f:
                 return None
-            gcs_path = f"{BUCKET_PREFIX}/{session_id}/{policy_name}_{timestamp_str}_{file_key}.{extension}"
+            gcs_path = f"evaluation_data/{session_id}/{policy_name}_{timestamp_str}_{file_key}.{extension}"
             blob = bucket.blob(gcs_path)
             blob.upload_from_file(f)
             return gcs_path
@@ -369,18 +372,17 @@ def leaderboard():
 
 
 if __name__ == "__main__":
-    # TODO: make all of these configurable via YAML
-    # 1) Initialize the database connection
-    # DB_URL = "postgresql://centralserver:m3lxcf830x20g4@localhost:5432/real_eval"
-    DB_URL = "postgresql://centralserver:m3lxcf830x20g4@34.55.101.123:5432/real_eval"
-    SessionLocal = initialize_database_connection(DB_URL)
+    parser = argparse.ArgumentParser(description="Start the central evaluation server.")
+    parser.add_argument("config_path", type=str, help="Path to the evaluation config YAML file")
+    args = parser.parse_args()
 
-    # GCS
-    BUCKET_NAME = "distributed_robot_eval"
-    BUCKET_PREFIX = "evaluation_data"
+    # Load the server configurations
+    ServerSetting: ServerConfig = load_config(args.config_path)
+    logger.info(f"Server configuration loaded: {ServerSetting}")
 
-    # TODO increase back to e.g. 4 hours, and add endpoint for clearing up policies when script crashes
-    SESSION_TIMEOUT_HOURS = 0.001  # Example: after 4 hours, we mark an un-terminated session as "done" and free any policies
+    # Initialize the database connection
+    SessionLocal = initialize_database_connection(ServerSetting.database_url)
+    logger.info(f"Database connection to {ServerSetting.database_url} initialized.")
 
-    # Run the Flask app in debug mode for development
-    app.run(host="0.0.0.0", port=5500, debug=True)
+    # Run the Flask app
+    app.run(host=ServerSetting.host, port=ServerSetting.port, debug=ServerSetting.debug_mode)

@@ -29,6 +29,10 @@ To run the evaluation:
 1. Add an evaluation config following the other config files in `configs/`
 2. Run `python evaluation_client/main.py <path to config file>`. For example, `python evaluation_client/main.py configs/berkeley.yaml`
 
-## Server deployment
+## Central server deployment
 
-TODO: document how to deploy the server
+Update the `configs/central_server.yaml` file with the appropriate configuration. Then run the following command to start the server:
+
+```shell
+python3 central_server/serve.py configs/central_server.yaml
+```

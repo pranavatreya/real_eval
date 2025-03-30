@@ -1,0 +1,11 @@
+server:
+  host: 0.0.0.0
+  port: 5500
+  database_url: postgresql://centralserver:m3lxcf830x20g4@34.55.101.123:5432/real_eval
+  gcs_bucket_name: distributed_robot_eval
+  # TODO: productionize this
+  debug_mode: true
+
+eval_session:
+  # TODO increase back to e.g. 4 hours, and add endpoint for clearing up policies when script crashes
+  timeout_hours: 0.001
