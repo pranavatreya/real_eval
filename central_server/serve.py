@@ -12,7 +12,7 @@ from server_config import load_config, ServerConfig
 from server_utils import cleanup_stale_sessions, get_gcs_bucket
 
 
-app = Flask(__name__, template_folder='frontend/templates', static_folder='frontend/static')
+app = Flask(__name__, template_folder="frontend/templates", static_folder="frontend/static")
 
 
 @app.route("/get_policies_to_compare", methods=["GET"])
@@ -31,7 +31,9 @@ def get_policies_to_compare():
     eval_location = request.args.get("eval_location", "Berkeley")
     evaluator_name = request.args.get("evaluator_name", "John Doe")
     robot_name = request.args.get("robot_name", "DROID")
-    evaluation_notes = request.args.get("evaluation_notes", "") # TODO: evaluation_notes should be passed in at the termination of a session, not at the beginning (for now we can assume it's empty)
+    evaluation_notes = request.args.get(
+        "evaluation_notes", ""
+    )  # TODO: evaluation_notes should be passed in at the termination of a session, not at the beginning (for now we can assume it's empty)
 
     db = SessionLocal()
 
@@ -42,11 +44,11 @@ def get_policies_to_compare():
         num_policies_needed: int = 2 if eval_type == "A/B" else 1
 
         # Query for candidate policies
-        candidates = db.query(PolicyModel).filter(
-            PolicyModel.is_in_use == False,
-            PolicyModel.ip_address.isnot(None),
-            PolicyModel.port.isnot(None)
-        ).all()
+        candidates = (
+            db.query(PolicyModel)
+            .filter(PolicyModel.is_in_use == False, PolicyModel.ip_address.isnot(None), PolicyModel.port.isnot(None))
+            .all()
+        )
 
         random.shuffle(candidates)
 
@@ -96,7 +98,7 @@ def get_policies_to_compare():
             robot_name=robot_name,
             evaluation_notes=evaluation_notes,
             policyA_name=policyA_name,
-            policyB_name=policyB_name
+            policyB_name=policyB_name,
         )
         db.add(new_session)
         db.commit()
@@ -108,14 +110,14 @@ def get_policies_to_compare():
             "policyA": {
                 "policy_name": chosen[0].unique_policy_name,
                 "ip": chosen[0].ip_address,
-                "port": chosen[0].port
-            }
+                "port": chosen[0].port,
+            },
         }
         if eval_type == "A/B":
             resp_data["policyB"] = {
                 "policy_name": chosen[1].unique_policy_name,
                 "ip": chosen[1].ip_address,
-                "port": chosen[1].port
+                "port": chosen[1].port,
             }
 
         return jsonify(resp_data), 200
@@ -139,6 +141,7 @@ def upload_eval_data():
       third_person_camera_type, third_person_camera_id,
       feedback, [plus video_left, video_right, video_wrist, npz_file]
     """
+
     def upload_file_if_present(file_key: str, extension: str) -> str | None:
         """
         Helper: if there's an uploaded file in request.files[file_key],
@@ -242,7 +245,7 @@ def upload_eval_data():
             policy_port=policy_port,
             third_person_camera_type=camera_type,
             third_person_camera_id=third_person_camera_id,
-            feedback=feedback
+            feedback=feedback,
         )
         db.add(new_episode)
         db.commit()
@@ -291,10 +294,7 @@ def terminate_session():
                 pol.last_time_evaluated = datetime.datetime.utcnow()
         db.commit()
 
-        return jsonify({
-            "status": "terminated",
-            "session_id": form_session_id
-        }), 200
+        return jsonify({"status": "terminated", "session_id": form_session_id}), 200
     except Exception as e:
         db.rollback()
         return jsonify({"error": str(e)}), 500

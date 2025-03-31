@@ -13,10 +13,13 @@ def cleanup_stale_sessions(database_session, range_in_hours: float = 4):
     """
     cutoff = datetime.datetime.utcnow() - datetime.timedelta(hours=range_in_hours)
     try:
-        stale_sessions = database_session.query(SessionModel).filter(
-            SessionModel.session_completion_timestamp.is_(None),
-            SessionModel.session_creation_timestamp < cutoff
-        ).all()
+        stale_sessions = (
+            database_session.query(SessionModel)
+            .filter(
+                SessionModel.session_completion_timestamp.is_(None), SessionModel.session_creation_timestamp < cutoff
+            )
+            .all()
+        )
 
         for sess in stale_sessions:
             # Mark session as completed now

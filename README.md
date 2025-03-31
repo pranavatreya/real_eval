@@ -36,3 +36,9 @@ Update the `configs/central_server.yaml` file with the appropriate configuration
 ```shell
 python3 central_server/serve.py configs/central_server.yaml
 ```
+
+## Contributing
+
+Please ensure to run `./pre-commit.sh` before pushing changes to `main`.
+
+TODO: Add pre-commit checks to the CI/GHA pipeline.
