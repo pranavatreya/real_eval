@@ -15,3 +15,4 @@ websockets~=15.0.1
 # For development
 black~=25.1.0
 mypy~=1.15.0
+sqlalchemy2-stubs~=0.0.2a38

@@ -265,7 +265,7 @@ def terminate_session():
       - Mark session completion timestamp
       - Free up the policies used (set is_in_use=False, update last_time_evaluated)
     """
-    form_session_id = request.form.get("session_id") or request.json.get("session_id")
+    form_session_id = request.form.get("session_id") or request.json.get("session_id")  # type: ignore
     if not form_session_id:
         return jsonify({"error": "Missing session_id"}), 400
 
