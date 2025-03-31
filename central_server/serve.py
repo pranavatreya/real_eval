@@ -1,15 +1,18 @@
+import argparse
 import uuid
 import datetime
 import random
 
-from flask import Flask, jsonify, request, render_template_string
+from flask import Flask, jsonify, request, render_template
 
 from database.schema import PolicyModel, SessionModel, EpisodeModel
 from database.connnection import initialize_database_connection
-from server_utils import cleanup_stale_sessions, get_gcs_client
+from logger import logger
+from server_config import load_config, ServerConfig
+from server_utils import cleanup_stale_sessions, get_gcs_bucket
 
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="frontend/templates", static_folder="frontend/static")
 
 
 @app.route("/get_policies_to_compare", methods=["GET"])
@@ -28,22 +31,24 @@ def get_policies_to_compare():
     eval_location = request.args.get("eval_location", "Berkeley")
     evaluator_name = request.args.get("evaluator_name", "John Doe")
     robot_name = request.args.get("robot_name", "DROID")
-    evaluation_notes = request.args.get("evaluation_notes", "") # TODO: evaluation_notes should be passed in at the termination of a session, not at the beginning (for now we can assume it's empty)
+    evaluation_notes = request.args.get(
+        "evaluation_notes", ""
+    )  # TODO: evaluation_notes should be passed in at the termination of a session, not at the beginning (for now we can assume it's empty)
 
     db = SessionLocal()
 
     # 1) Clean up stale sessions
-    cleanup_stale_sessions(database_session=db, range_in_hours=SESSION_TIMEOUT_HOURS)
+    cleanup_stale_sessions(database_session=db, range_in_hours=ServerSetting.eval_session.timeout_hours)
 
     try:
-        num_policies_needed = 2 if eval_type == "A/B" else 1
+        num_policies_needed: int = 2 if eval_type == "A/B" else 1
 
         # Query for candidate policies
-        candidates = db.query(PolicyModel).filter(
-            PolicyModel.is_in_use == False,
-            PolicyModel.ip_address.isnot(None),
-            PolicyModel.port.isnot(None)
-        ).all()
+        candidates = (
+            db.query(PolicyModel)
+            .filter(PolicyModel.is_in_use == False, PolicyModel.ip_address.isnot(None), PolicyModel.port.isnot(None))
+            .all()
+        )
 
         random.shuffle(candidates)
 
@@ -93,7 +98,7 @@ def get_policies_to_compare():
             robot_name=robot_name,
             evaluation_notes=evaluation_notes,
             policyA_name=policyA_name,
-            policyB_name=policyB_name
+            policyB_name=policyB_name,
         )
         db.add(new_session)
         db.commit()
@@ -105,14 +110,14 @@ def get_policies_to_compare():
             "policyA": {
                 "policy_name": chosen[0].unique_policy_name,
                 "ip": chosen[0].ip_address,
-                "port": chosen[0].port
-            }
+                "port": chosen[0].port,
+            },
         }
         if eval_type == "A/B":
             resp_data["policyB"] = {
                 "policy_name": chosen[1].unique_policy_name,
                 "ip": chosen[1].ip_address,
-                "port": chosen[1].port
+                "port": chosen[1].port,
             }
 
         return jsonify(resp_data), 200
@@ -136,6 +141,21 @@ def upload_eval_data():
       third_person_camera_type, third_person_camera_id,
       feedback, [plus video_left, video_right, video_wrist, npz_file]
     """
+
+    def upload_file_if_present(file_key: str, extension: str) -> str | None:
+        """
+        Helper: if there's an uploaded file in request.files[file_key],
+        upload to GCS, return the path. Otherwise, return None.
+        """
+        f = request.files.get(file_key, None)
+        if not f:
+            return None
+
+        gcs_path = f"evaluation_data/{session_id}/{policy_name}_{timestamp_str}_{file_key}.{extension}"
+        blob = BlobStorage.blob(gcs_path)
+        blob.upload_from_file(f)
+        return gcs_path
+
     # We can accept either form-data or JSON, but videos typically come in form-data
     if not request.form:
         return jsonify({"error": "Must send data in form format."}), 400
@@ -203,22 +223,6 @@ def upload_eval_data():
         #    We'll store them as separate keys in the GCS bucket:
         #    e.g. evaluation_data/<session_uuid>/<policy_name>_<timestamp>_left.mp4
         #         evaluation_data/<session_uuid>/<policy_name>_<timestamp>_npz.npz
-        storage_client = get_gcs_client()
-        bucket = storage_client.bucket(BUCKET_NAME)
-
-        def upload_file_if_present(file_key: str, extension: str):
-            """
-            Helper: if there's an uploaded file in request.files[file_key],
-            upload to GCS, return the path. Otherwise return None.
-            """
-            f = request.files.get(file_key, None)
-            if not f:
-                return None
-            gcs_path = f"{BUCKET_PREFIX}/{session_id}/{policy_name}_{timestamp_str}_{file_key}.{extension}"
-            blob = bucket.blob(gcs_path)
-            blob.upload_from_file(f)
-            return gcs_path
-
         gcs_left_cam_path = upload_file_if_present("video_left", "mp4")
         gcs_right_cam_path = upload_file_if_present("video_right", "mp4")
         gcs_wrist_cam_path = upload_file_if_present("video_wrist", "mp4")
@@ -241,7 +245,7 @@ def upload_eval_data():
             policy_port=policy_port,
             third_person_camera_type=camera_type,
             third_person_camera_id=third_person_camera_id,
-            feedback=feedback
+            feedback=feedback,
         )
         db.add(new_episode)
         db.commit()
@@ -261,7 +265,7 @@ def terminate_session():
       - Mark session completion timestamp
       - Free up the policies used (set is_in_use=False, update last_time_evaluated)
     """
-    form_session_id = request.form.get("session_id") or request.json.get("session_id")
+    form_session_id = request.form.get("session_id") or request.json.get("session_id")  # type: ignore
     if not form_session_id:
         return jsonify({"error": "Missing session_id"}), 400
 
@@ -290,10 +294,7 @@ def terminate_session():
                 pol.last_time_evaluated = datetime.datetime.utcnow()
         db.commit()
 
-        return jsonify({
-            "status": "terminated",
-            "session_id": form_session_id
-        }), 200
+        return jsonify({"status": "terminated", "session_id": form_session_id}), 200
     except Exception as e:
         db.rollback()
         return jsonify({"error": str(e)}), 500
@@ -304,83 +305,33 @@ def terminate_session():
 @app.route("/leaderboard", methods=["GET"])
 def leaderboard():
     """
-    Renders a simple page with the current leaderboard based on ELO scores.
-
-    # TODO: move all of thee HTML/CSS into a separate file for better readability and maintainability.
+    Displays the leaderboard of policies, ordered by `elo_score` in descending order.
     """
     db = SessionLocal()
     try:
-        # Get all policies from the database, ordered by elo_score descending
         policies = db.query(PolicyModel).order_by(PolicyModel.elo_score.desc()).all()
-
-        template = '''
-        <!doctype html>
-        <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Leaderboard</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 40px; }
-              table { width: 100%; border-collapse: collapse; }
-              th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ccc; }
-              th { background-color: #f2f2f2; }
-              tr:nth-child(even) { background-color: #fafafa; }
-            </style>
-          </head>
-          <body>
-            <h1>Leaderboard</h1>
-            <table>
-              <thead>
-                <tr>
-                  <th>Rank</th>
-                  <th>Policy Name</th>
-                  <th>Elo Score</th>
-                  <th>Times in AB Eval</th>
-                  <th>Last Time Evaluated</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for policy in policies %}
-                <tr>
-                  <td>{{ loop.index }}</td>
-                  <td>{{ policy.unique_policy_name }}</td>
-                  <td>{{ policy.elo_score }}</td>
-                  <td>{{ policy.times_in_ab_eval or 0 }}</td>
-                  <td>
-                    {% if policy.last_time_evaluated %}
-                      {{ policy.last_time_evaluated.strftime("%Y-%m-%d %H:%M:%S") }}
-                    {% else %}
-                      N/A
-                    {% endif %}
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </body>
-        </html>
-        '''
-        return render_template_string(template, policies=policies)
+        return render_template("leaderboard.html", policies=policies)
     except Exception as e:
-        return f"An error occurred: {e}", 500
+        return f"An error occurred loading the leaderboard: {str(e)}", 500
     finally:
         db.close()
 
 
 if __name__ == "__main__":
-    # TODO: make all of these configurable via YAML
-    # 1) Initialize the database connection
-    # DB_URL = "postgresql://centralserver:m3lxcf830x20g4@localhost:5432/real_eval"
-    DB_URL = "postgresql://centralserver:m3lxcf830x20g4@34.55.101.123:5432/real_eval"
-    SessionLocal = initialize_database_connection(DB_URL)
+    parser = argparse.ArgumentParser(description="Start the central evaluation server.")
+    parser.add_argument("config_path", type=str, help="Path to the evaluation config YAML file")
+    args = parser.parse_args()
 
-    # GCS
-    BUCKET_NAME = "distributed_robot_eval"
-    BUCKET_PREFIX = "evaluation_data"
+    # Load the server configurations
+    ServerSetting: ServerConfig = load_config(args.config_path)
+    logger.info(f"Server configuration loaded: {ServerSetting}")
 
-    # TODO increase back to e.g. 4 hours, and add endpoint for clearing up policies when script crashes
-    SESSION_TIMEOUT_HOURS = 0.001  # Example: after 4 hours, we mark an un-terminated session as "done" and free any policies
+    # Initialize the database connection
+    SessionLocal = initialize_database_connection(ServerSetting.database_url)
+    logger.info(f"Database connection to {ServerSetting.database_url} initialized.")
 
-    # Run the Flask app in debug mode for development
-    app.run(host="0.0.0.0", port=5500, debug=True)
+    # The GCS bucket used to store episode videos and npz files
+    BlobStorage = get_gcs_bucket(ServerSetting.gcs_bucket_name)
+
+    # Run the Flask app
+    app.run(host=ServerSetting.host, port=ServerSetting.port, debug=ServerSetting.debug_mode)

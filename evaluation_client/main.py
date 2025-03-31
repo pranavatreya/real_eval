@@ -21,6 +21,7 @@ except ModuleNotFoundError:
     from r2d2.robot_env import RobotEnv
 
 import faulthandler
+
 faulthandler.enable()
 
 
@@ -41,6 +42,7 @@ def _resize_with_pad_pil(image: Image.Image, height: int, width: int, method: in
     assert zero_image.size == (width, height)
     return zero_image
 
+
 def resize_with_pad(images: np.ndarray, height: int, width: int, method=Image.BILINEAR) -> np.ndarray:
     """Replicates tf.image.resize_with_pad for multiple images using PIL."""
     if images is None:
@@ -49,10 +51,7 @@ def resize_with_pad(images: np.ndarray, height: int, width: int, method=Image.BI
         return images
     original_shape = images.shape
     images = images.reshape(-1, *original_shape[-3:])
-    resized = np.stack([
-        _resize_with_pad_pil(Image.fromarray(im), height, width, method=method)
-        for im in images
-    ])
+    resized = np.stack([_resize_with_pad_pil(Image.fromarray(im), height, width, method=method) for im in images])
     return resized.reshape(*original_shape[:-3], *resized.shape[-3:])
 
 
@@ -114,7 +113,7 @@ def main():
     """
 
     # The config file is loaded in __main__
-    base_image: str = setting.third_person_camera   # e.g. "left", "right"
+    base_image: str = setting.third_person_camera  # e.g. "left", "right"
     logging_server_ip: str = setting.logging_server_ip
 
     # 1) Get policies from server
@@ -150,10 +149,14 @@ def main():
             break
 
         # If we are single-policy, we only evaluate one. If A/B, we do both
-        policy_list = [("A", policyA_data)] if not policyB_data else [
-            ("A", policyA_data),
-            ("B", policyB_data),
-        ]
+        policy_list = (
+            [("A", policyA_data)]
+            if not policyB_data
+            else [
+                ("A", policyA_data),
+                ("B", policyB_data),
+            ]
+        )
 
         for policy_label, policy_data in policy_list:
             policy_name = policy_data["policy_name"]  # unique name in DB
@@ -200,14 +203,16 @@ def main():
                         # Use your function or existing code to resize
                         # For example, we might pass in:
                         request_data = {
-	                    "observation/exterior_image_1_left": image_tools.resize_with_pad(
-	                        curr_obs[base_image], 224, 224
-	                    ),
-	                    "observation/wrist_image_left": image_tools.resize_with_pad(curr_obs["wrist_image"], 224, 224),
-	                    "observation/joint_position": curr_obs["joint_position"],
-	                    "observation/gripper_position": curr_obs["gripper_position"],
-	                    "prompt": lang_command,
-	                }
+                            "observation/exterior_image_1_left": image_tools.resize_with_pad(
+                                curr_obs[base_image], 224, 224
+                            ),
+                            "observation/wrist_image_left": image_tools.resize_with_pad(
+                                curr_obs["wrist_image"], 224, 224
+                            ),
+                            "observation/joint_position": curr_obs["joint_position"],
+                            "observation/gripper_position": curr_obs["gripper_position"],
+                            "prompt": lang_command,
+                        }
                         # Infer
                         result = policy_client.infer(request_data)
                         pred_action_chunk = result["actions"]
@@ -237,7 +242,7 @@ def main():
                         "cartesian_position": curr_obs["cartesian_position"].tolist(),
                         "joint_position": curr_obs["joint_position"].tolist(),
                         "gripper_position": curr_obs["gripper_position"].tolist(),
-                        "action": action.tolist()
+                        "action": action.tolist(),
                     }
                     episode_data.append(step_data)
 
@@ -313,20 +318,16 @@ def main():
                 "session_id": session_id,
                 "policy_name": policy_name,
                 "command": lang_command,
-
                 "binary_success": str(binary_success),
                 "partial_success": str(partial_success),
-
                 "duration": str(t_step),  # how many steps
                 "policy_ip": str(ip),
                 "policy_port": str(port),
-
                 # For your own usage, you can set third_person_camera_type to "left"/"right"
                 # based on `setting.third_person_camera`.
                 "third_person_camera_type": base_image,
                 # Suppose you track an integer ID from your config:
                 "third_person_camera_id": str(setting.cameras.get(base_image, "")),
-
                 "feedback": feedback,
                 "timestamp": timestamp_str,
             }

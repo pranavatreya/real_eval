@@ -24,6 +24,7 @@ class PolicyModel(Base):
         - robot_arm_type
         - created_at
     """
+
     __tablename__ = "policies"
 
     id = Column(Integer, primary_key=True)
@@ -57,11 +58,12 @@ class SessionModel(Base):
           They might store the unique_policy_name or just text data.
           For an A/B eval, we fill both columns; for single-policy, fill policyA only.
     """
+
     __tablename__ = "sessions"
 
     id = Column(Integer, primary_key=True)
     session_uuid = Column(PG_UUID(as_uuid=True), unique=True, nullable=False)
-    evaluation_type = Column(String, nullable=False)        # "A/B" or "single-policy"
+    evaluation_type = Column(String, nullable=False)  # "A/B" or "single-policy"
     evaluation_location = Column(String, nullable=True)
     evaluator_name = Column(String, nullable=True)
     robot_name = Column(String, nullable=True)
@@ -76,9 +78,7 @@ class SessionModel(Base):
     policyB_name = Column(String, nullable=True)
 
     # Relationship: one Session -> many Episodes
-    episodes = relationship(
-        "EpisodeModel", back_populates="parent_session", cascade="all, delete-orphan"
-    )
+    episodes = relationship("EpisodeModel", back_populates="parent_session", cascade="all, delete-orphan")
 
 
 class EpisodeModel(Base):
@@ -103,6 +103,7 @@ class EpisodeModel(Base):
         - third_person_camera_id (e.g. 223492)
         - feedback (text)
     """
+
     __tablename__ = "episodes"
 
     id = Column(Integer, primary_key=True)
@@ -112,9 +113,9 @@ class EpisodeModel(Base):
     command = Column(Text, nullable=True)
 
     binary_success = Column(Integer, nullable=True)  # 0 or 1
-    partial_success = Column(Float, nullable=True)   # 0.0 to 1.0
+    partial_success = Column(Float, nullable=True)  # 0.0 to 1.0
 
-    duration = Column(Integer, nullable=True)        # number of timesteps
+    duration = Column(Integer, nullable=True)  # number of timesteps
 
     gcs_left_cam_path = Column(String, nullable=True)
     gcs_right_cam_path = Column(String, nullable=True)

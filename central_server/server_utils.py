@@ -13,10 +13,13 @@ def cleanup_stale_sessions(database_session, range_in_hours: float = 4):
     """
     cutoff = datetime.datetime.utcnow() - datetime.timedelta(hours=range_in_hours)
     try:
-        stale_sessions = database_session.query(SessionModel).filter(
-            SessionModel.session_completion_timestamp.is_(None),
-            SessionModel.session_creation_timestamp < cutoff
-        ).all()
+        stale_sessions = (
+            database_session.query(SessionModel)
+            .filter(
+                SessionModel.session_completion_timestamp.is_(None), SessionModel.session_creation_timestamp < cutoff
+            )
+            .all()
+        )
 
         for sess in stale_sessions:
             # Mark session as completed now
@@ -47,6 +50,7 @@ def is_policy_server_alive(ip_address, port, timeout=3.0):  # TODO: make this fu
     """
     if not ip_address or not port:
         return False
+
     url = f"http://{ip_address}:{port}/ping"  # Or whatever minimal endpoint
     try:
         r = requests.get(url, timeout=timeout)
@@ -55,6 +59,5 @@ def is_policy_server_alive(ip_address, port, timeout=3.0):  # TODO: make this fu
         return False
 
 
-def get_gcs_client():   # TODO: create a wrapper class
-    return storage.Client()
-
+def get_gcs_bucket(gcs_bucket_name: str):
+    return storage.Client().bucket(gcs_bucket_name)
