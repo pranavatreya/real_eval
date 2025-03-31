@@ -11,3 +11,7 @@ simplejpeg~=1.8.2
 SQLAlchemy~=2.0.38
 tqdm~=4.67.1
 websockets~=15.0.1
+
+# For development
+black~=25.1.0
+mypy~=1.15.0
