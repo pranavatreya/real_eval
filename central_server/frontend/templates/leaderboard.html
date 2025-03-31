@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='leaderboard.css') }}">
+  </head>
+  <body>
+    <div class="container">
+      <h1>Leaderboard</h1>
+      <table>
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Policy Name</th>
+            <th>Elo Score</th>
+            <th>Times in AB Eval</th>
+            <th>Last Time Evaluated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for policy in policies %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ policy.unique_policy_name }}</td>
+            <td>{{ policy.elo_score }}</td>
+            <td>{{ policy.times_in_ab_eval or 0 }}</td>
+            <td>
+              {% if policy.last_time_evaluated %}
+                {{ policy.last_time_evaluated.strftime("%Y-%m-%d %H:%M:%S") }}
+              {% else %}
+                N/A
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>

@@ -3,16 +3,16 @@ import uuid
 import datetime
 import random
 
-from flask import Flask, jsonify, request, render_template_string
+from flask import Flask, jsonify, request, render_template
 
 from database.schema import PolicyModel, SessionModel, EpisodeModel
 from database.connnection import initialize_database_connection
 from logger import logger
 from server_config import load_config, ServerConfig
-from server_utils import cleanup_stale_sessions, get_gcs_client
+from server_utils import cleanup_stale_sessions, get_gcs_bucket
 
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='frontend/templates', static_folder='frontend/static')
 
 
 @app.route("/get_policies_to_compare", methods=["GET"])
@@ -139,6 +139,20 @@ def upload_eval_data():
       third_person_camera_type, third_person_camera_id,
       feedback, [plus video_left, video_right, video_wrist, npz_file]
     """
+    def upload_file_if_present(file_key: str, extension: str) -> str | None:
+        """
+        Helper: if there's an uploaded file in request.files[file_key],
+        upload to GCS, return the path. Otherwise, return None.
+        """
+        f = request.files.get(file_key, None)
+        if not f:
+            return None
+
+        gcs_path = f"evaluation_data/{session_id}/{policy_name}_{timestamp_str}_{file_key}.{extension}"
+        blob = BlobStorage.blob(gcs_path)
+        blob.upload_from_file(f)
+        return gcs_path
+
     # We can accept either form-data or JSON, but videos typically come in form-data
     if not request.form:
         return jsonify({"error": "Must send data in form format."}), 400
@@ -206,22 +220,6 @@ def upload_eval_data():
         #    We'll store them as separate keys in the GCS bucket:
         #    e.g. evaluation_data/<session_uuid>/<policy_name>_<timestamp>_left.mp4
         #         evaluation_data/<session_uuid>/<policy_name>_<timestamp>_npz.npz
-        storage_client = get_gcs_client()
-        bucket = storage_client.bucket(ServerSetting.gcs_bucket_name)
-
-        def upload_file_if_present(file_key: str, extension: str):
-            """
-            Helper: if there's an uploaded file in request.files[file_key],
-            upload to GCS, return the path. Otherwise return None.
-            """
-            f = request.files.get(file_key, None)
-            if not f:
-                return None
-            gcs_path = f"evaluation_data/{session_id}/{policy_name}_{timestamp_str}_{file_key}.{extension}"
-            blob = bucket.blob(gcs_path)
-            blob.upload_from_file(f)
-            return gcs_path
-
         gcs_left_cam_path = upload_file_if_present("video_left", "mp4")
         gcs_right_cam_path = upload_file_if_present("video_right", "mp4")
         gcs_wrist_cam_path = upload_file_if_present("video_wrist", "mp4")
@@ -307,66 +305,14 @@ def terminate_session():
 @app.route("/leaderboard", methods=["GET"])
 def leaderboard():
     """
-    Renders a simple page with the current leaderboard based on ELO scores.
-
-    # TODO: move all of thee HTML/CSS into a separate file for better readability and maintainability.
+    Displays the leaderboard of policies, ordered by `elo_score` in descending order.
     """
     db = SessionLocal()
     try:
-        # Get all policies from the database, ordered by elo_score descending
         policies = db.query(PolicyModel).order_by(PolicyModel.elo_score.desc()).all()
-
-        template = '''
-        <!doctype html>
-        <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Leaderboard</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 40px; }
-              table { width: 100%; border-collapse: collapse; }
-              th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ccc; }
-              th { background-color: #f2f2f2; }
-              tr:nth-child(even) { background-color: #fafafa; }
-            </style>
-          </head>
-          <body>
-            <h1>Leaderboard</h1>
-            <table>
-              <thead>
-                <tr>
-                  <th>Rank</th>
-                  <th>Policy Name</th>
-                  <th>Elo Score</th>
-                  <th>Times in AB Eval</th>
-                  <th>Last Time Evaluated</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for policy in policies %}
-                <tr>
-                  <td>{{ loop.index }}</td>
-                  <td>{{ policy.unique_policy_name }}</td>
-                  <td>{{ policy.elo_score }}</td>
-                  <td>{{ policy.times_in_ab_eval or 0 }}</td>
-                  <td>
-                    {% if policy.last_time_evaluated %}
-                      {{ policy.last_time_evaluated.strftime("%Y-%m-%d %H:%M:%S") }}
-                    {% else %}
-                      N/A
-                    {% endif %}
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </body>
-        </html>
-        '''
-        return render_template_string(template, policies=policies)
+        return render_template("leaderboard.html", policies=policies)
     except Exception as e:
-        return f"An error occurred: {e}", 500
+        return f"An error occurred loading the leaderboard: {str(e)}", 500
     finally:
         db.close()
 
@@ -383,6 +329,9 @@ if __name__ == "__main__":
     # Initialize the database connection
     SessionLocal = initialize_database_connection(ServerSetting.database_url)
     logger.info(f"Database connection to {ServerSetting.database_url} initialized.")
+
+    # The GCS bucket used to store episode videos and npz files
+    BlobStorage = get_gcs_bucket(ServerSetting.gcs_bucket_name)
 
     # Run the Flask app
     app.run(host=ServerSetting.host, port=ServerSetting.port, debug=ServerSetting.debug_mode)

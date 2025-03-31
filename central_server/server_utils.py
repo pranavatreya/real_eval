@@ -47,6 +47,7 @@ def is_policy_server_alive(ip_address, port, timeout=3.0):  # TODO: make this fu
     """
     if not ip_address or not port:
         return False
+
     url = f"http://{ip_address}:{port}/ping"  # Or whatever minimal endpoint
     try:
         r = requests.get(url, timeout=timeout)
@@ -55,6 +56,5 @@ def is_policy_server_alive(ip_address, port, timeout=3.0):  # TODO: make this fu
         return False
 
 
-def get_gcs_client():   # TODO: create a wrapper class
-    return storage.Client()
-
+def get_gcs_bucket(gcs_bucket_name: str):
+    return storage.Client().bucket(gcs_bucket_name)
