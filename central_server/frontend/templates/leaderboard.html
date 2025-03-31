@@ -17,6 +17,7 @@
             <th>Elo Score</th>
             <th>Times in AB Eval</th>
             <th>Last Time Evaluated</th>
+            <th>Owner</th>
           </tr>
         </thead>
         <tbody>
@@ -33,6 +34,7 @@
                 N/A
               {% endif %}
             </td>
+            <td>{{ policy.owner_name }}</td>
           </tr>
           {% endfor %}
         </tbody>
