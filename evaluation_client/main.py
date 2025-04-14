@@ -164,8 +164,8 @@ def main():
         print(f"\n=== Evaluating policy {policy_label} => {policy_name} ({ip}:{port}) ===")
 
         # Create the policy client
-        #policy_client = WebsocketClientPolicy(ip, port)
-        policy_client = WebsocketClientPolicy("128.32.175.199", port)
+        policy_client = WebsocketClientPolicy(ip, port)
+        #policy_client = WebsocketClientPolicy("128.32.175.199", port)
 
         # Prepare for rollout
         max_timesteps = 600
