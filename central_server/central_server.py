@@ -40,8 +40,7 @@ class SessionModel(Base):
     id = Column(Integer, primary_key=True)
     session_uuid = Column(PG_UUID(as_uuid=True), unique=True, nullable=False)
 
-    # We will always set this to "A/B"
-    evaluation_type = Column(String, nullable=False)
+    evaluation_type = Column(String, nullable=False)  # Always "A/B"
 
     evaluation_location = Column(String, nullable=True)
     evaluator_name = Column(String, nullable=True)
@@ -50,14 +49,10 @@ class SessionModel(Base):
     session_creation_timestamp = Column(DateTime, default=datetime.datetime.utcnow)
     session_completion_timestamp = Column(DateTime, nullable=True)
 
-    # We are re-purposing evaluation_notes to store:
-    #   - "VALID_SESSION: " prefix if user said everything was good
-    #   - "PREFERENCE=A,B,or tie" for the user preference
-    #   - any textual feedback they typed
-    #   - "TIMED_OUT" or any other reason for invalid session
+    # We use evaluation_notes to store validity, preference, textual feedback, etc.
     evaluation_notes = Column(Text, nullable=True)
 
-    # We only store two policies in the table itself (A and B) – even though we may evaluate more than two in a session.
+    # We only store 2 policies in the table itself (A & B), but more can be used/returned
     policyA_name = Column(String, nullable=True)
     policyB_name = Column(String, nullable=True)
 
@@ -88,7 +83,7 @@ class EpisodeModel(Base):
     third_person_camera_type = Column(String, nullable=True)
     third_person_camera_id = Column(Integer, nullable=True)
 
-    # We are now re-purposing `feedback` to store the policy letter (A, B, C, D, etc.).
+    # We re-purpose `feedback` to store BOTH policy letter and average latency, e.g. "B;avg_latency=0.24"
     feedback = Column(Text, nullable=True)
 
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
@@ -109,15 +104,9 @@ Base.metadata.create_all(engine)
 
 # -- Utility / Cleanup: handle stale sessions --
 
-# Currently set to 0.5 hours. If a session times out, we mark it invalid by storing "TIMED_OUT".
 SESSION_TIMEOUT_HOURS = 0.5
 
 def cleanup_stale_sessions():
-    """
-    Finds sessions that are older than SESSION_TIMEOUT_HOURS but have no
-    completion_timestamp set. Mark them as completed, and set evaluation_notes to "TIMED_OUT"
-    (thus marking them invalid).
-    """
     db = SessionLocal()
     cutoff = datetime.datetime.utcnow() - datetime.timedelta(hours=SESSION_TIMEOUT_HOURS)
     try:
@@ -128,7 +117,6 @@ def cleanup_stale_sessions():
 
         for sess in stale_sessions:
             sess.session_completion_timestamp = datetime.datetime.utcnow()
-            # Mark it invalid by adding a note
             if sess.evaluation_notes:
                 sess.evaluation_notes += "\nTIMED_OUT"
             else:
@@ -140,27 +128,45 @@ def cleanup_stale_sessions():
         db.close()
 
 
+# -------------------------------
+# Version-check endpoint
+# -------------------------------
+SERVER_VERSION = "1.0"  # Make sure to bump this up whenever you update the server/client code
+
+@app.route("/version_check", methods=["POST"])
+def version_check():
+    """
+    The client will send e.g. JSON: {"client_version": "1.0"}
+    We compare with SERVER_VERSION. If mismatch, return an error.
+    """
+    data = request.get_json() or {}
+    client_version = data.get("client_version", None)
+    if client_version == SERVER_VERSION:
+        return jsonify({"status": "ok", "message": "Versions match"}), 200
+    else:
+        return jsonify({"status": "error", "message": "Version mismatch"}), 400
+# -------------------------------
+
+
 @app.route("/get_policies_to_compare", methods=["GET"])
 def get_policies_to_compare():
     """
-    Returns JSON specifying up to 'num_policies_needed' policy IPs for an A/B style evaluation.
-    We do 4 by default, labeling them A, B, C, D. The first two (A and B) also get stored
-    in the session table.
+    (1) Now, instead of returning only 4 policies, we return *all* policies
+    that have non-null IP/port.
+    (2) We still create a new session with policyA_name / policyB_name set to the first two,
+        if at least 2 exist. If fewer than 2 exist, we still error.
     """
 
-    # 1) Clean up stale sessions
+    # Clean up stale sessions
     cleanup_stale_sessions()
 
-    # 2) We'll collect some user info from query args so that it can be stored in SessionModel
     evaluation_location = request.args.get("eval_location", "")
     evaluator_name = request.args.get("evaluator_name", "")
     robot_name = request.args.get("robot_name", "DROID")
 
-    num_policies_needed = 4  # can be changed to 5 if we want more
-
     db = SessionLocal()
     try:
-        # Grab all candidate policies that have an IP/port (we no longer filter by is_in_use).
+        # Grab all candidate policies that have an IP/port
         candidates = db.query(PolicyModel).filter(
             PolicyModel.ip_address.isnot(None),
             PolicyModel.port.isnot(None),
@@ -168,52 +174,45 @@ def get_policies_to_compare():
 
         random.shuffle(candidates)
 
-        chosen = []
+        if len(candidates) < 2:
+            return jsonify({"error": "We need at least 2 policies to do an A/B session."}), 400
+
+        # Increment times_in_ab_eval for each
         for pol in candidates:
-            # We remove is_policy_server_alive calls because we assume servers stay up.
-            # If the server is not healthy, that is beyond the scope here.
-            chosen.append(pol)
-            if len(chosen) == num_policies_needed:
-                break
+            if pol.times_in_ab_eval is None:
+                pol.times_in_ab_eval = 0
+            pol.times_in_ab_eval += 1
 
-        if len(chosen) < num_policies_needed:
-            return jsonify({"error": f"Not enough available policies to retrieve {num_policies_needed}."}), 400
-
-        # For each chosen policy, increment times_in_ab_eval (since we are always doing A/B evaluations)
-        for p in chosen:
-            if p.times_in_ab_eval is None:
-                p.times_in_ab_eval = 0
-            p.times_in_ab_eval += 1
-
-        # 3) Create the new session in DB
         session_uuid_ = uuid.uuid4()
-        # We only store the first two in the session itself
-        policyA_name = chosen[0].unique_policy_name
-        policyB_name = chosen[1].unique_policy_name
+        # policyA_name is the first, policyB_name is the second
+        # We'll do that by default
+        policyA_name = candidates[0].unique_policy_name
+        policyB_name = candidates[1].unique_policy_name
 
         new_session = SessionModel(
             session_uuid=session_uuid_,
-            evaluation_type="A/B",  # Always A/B
+            evaluation_type="A/B",
             evaluation_location=evaluation_location,
             evaluator_name=evaluator_name,
             robot_name=robot_name,
             policyA_name=policyA_name,
             policyB_name=policyB_name
-            # We do NOT store C and D in the session table
         )
         db.add(new_session)
         db.commit()
 
-        labels = ["A", "B", "C", "D", "E", "F", "G", "H", "I"]  # could be extended
+        # Return *all* policies
         resp_data = {
             "session_id": str(session_uuid_),
             "evaluation_type": "A/B",
             "policies": []
         }
-        for i in range(num_policies_needed):
-            pol = chosen[i]
+
+        labels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        for i, pol in enumerate(candidates):
+            label = labels[i] if i < len(labels) else f"X{i}"
             resp_data["policies"].append({
-                "label": labels[i],
+                "label": label,
                 "policy_name": pol.unique_policy_name,
                 "ip": pol.ip_address,
                 "port": pol.port
@@ -230,11 +229,6 @@ def get_policies_to_compare():
 
 @app.route("/upload_eval_data", methods=["POST"])
 def upload_eval_data():
-    """
-    Receives a single evaluation episode’s data.
-    Uploads any video files + 1 npz to GCS, then stores the metadata in EpisodeModel.
-    We also store the policy letter in the "feedback" field now.
-    """
     if not request.form:
         return jsonify({"error": "Must send data in multipart form-data."}), 400
 
@@ -242,7 +236,6 @@ def upload_eval_data():
     if not session_id:
         return jsonify({"error": "Missing session_id"}), 400
 
-    # Retrieve text fields
     policy_name = request.form.get("policy_name", "")
     command = request.form.get("command", "")
     binary_success_str = request.form.get("binary_success", None)
@@ -252,7 +245,9 @@ def upload_eval_data():
     policy_port_str = request.form.get("policy_port", None)
     camera_type = request.form.get("third_person_camera_type", None)
     camera_id_str = request.form.get("third_person_camera_id", None)
-    policy_letter = request.form.get("policy_letter", "")  # The newly-added field
+    # We'll store policy_letter plus average latency inside the same text
+    # E.g. "B;avg_latency=0.123"
+    policy_letter_and_latency = request.form.get("policy_letter", "")  
     timestamp_str = request.form.get("timestamp", "")
 
     try:
@@ -290,12 +285,10 @@ def upload_eval_data():
 
     db = SessionLocal()
     try:
-        # 1) Check that session exists
         session_obj = db.query(SessionModel).filter_by(session_uuid=session_id).first()
         if not session_obj:
             return jsonify({"error": f"No session with ID {session_id}"}), 400
 
-        # 2) Upload files to GCS
         storage_client = get_gcs_client()
         bucket = storage_client.bucket(BUCKET_NAME)
 
@@ -313,7 +306,6 @@ def upload_eval_data():
         gcs_wrist_cam_path = upload_file_if_present("video_wrist", "mp4")
         npz_file_path = upload_file_if_present("npz_file", "npz")
 
-        # Insert new EpisodeModel row.
         new_episode = EpisodeModel(
             session_id=session_obj.id,
             policy_name=policy_name,
@@ -330,7 +322,7 @@ def upload_eval_data():
             policy_port=policy_port,
             third_person_camera_type=camera_type,
             third_person_camera_id=third_person_camera_id,
-            feedback=policy_letter  # storing the letter here
+            feedback=policy_letter_and_latency  # Store the combined policy letter + average latency
         )
         db.add(new_episode)
         db.commit()
@@ -345,13 +337,6 @@ def upload_eval_data():
 
 @app.route("/terminate_session", methods=["POST"])
 def terminate_session():
-    """
-    Called by the evaluation_client when the entire evaluation is done.
-      - Mark session completion timestamp
-      - Store final evaluation notes in 'evaluation_notes'
-      - We do *not* bother with freeing up is_in_use (we no longer use that).
-      - Mark last_time_evaluated for the *two* policies
-    """
     form_data = request.form if request.form else request.json
     if not form_data:
         return jsonify({"error": "Missing form or JSON data."}), 400
@@ -360,7 +345,6 @@ def terminate_session():
     if not form_session_id:
         return jsonify({"error": "Missing session_id"}), 400
 
-    # We expect "evaluation_notes" from the client describing preference, long feedback, etc.
     final_notes = form_data.get("evaluation_notes", "")
 
     db = SessionLocal()
@@ -369,20 +353,14 @@ def terminate_session():
         if not session_obj:
             return jsonify({"error": f"No session with ID {form_session_id}"}), 404
 
-        # Mark the session complete
         session_obj.session_completion_timestamp = datetime.datetime.utcnow()
-
-        # Append the final notes
         session_obj.evaluation_notes = final_notes
 
-        # We can update last_time_evaluated for policyA and policyB if we like
         used_policy_names = []
         if session_obj.policyA_name:
             used_policy_names.append(session_obj.policyA_name)
         if session_obj.policyB_name:
             used_policy_names.append(session_obj.policyB_name)
-        # We do *not* track policyC_name, policyD_name in the SessionModel; they are ephemeral.
-        # However information about them is stored in the episodes table, and is linked by the same FK session number
 
         for pname in used_policy_names:
             pol = db.query(PolicyModel).filter_by(unique_policy_name=pname).first()
@@ -404,4 +382,3 @@ def terminate_session():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
-
