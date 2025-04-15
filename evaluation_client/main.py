@@ -33,7 +33,6 @@ def flush_stdin_buffer():
 def extract_observation(obs_dict, setting):
     """Extract left/right/wrist images if available, plus robot state."""
     def is_camera_image(camera_name: str, observation_key: str) -> bool:
-        """Returns True if the observation is for the specified camera."""
         if camera_name not in setting.cameras:
             return False
         camera_id: str = str(setting.cameras[camera_name])
@@ -53,11 +52,10 @@ def extract_observation(obs_dict, setting):
     def process_image(img):
         if img is None:
             return None
-        # Drop alpha channel if present
-        img = img[..., :3]
-        # Convert from BGR to RGB if needed
+        img = img[..., :3]  # drop alpha
+        # convert BGR to RGB
         img = np.concatenate([img[..., 2:], img[..., 1:2], img[..., :1]], axis=-1)
-        # Resize to 288x512
+        # resize
         img = np.array(Image.fromarray(img).resize((512, 288), resample=Image.LANCZOS))
         return img
 
@@ -79,16 +77,65 @@ def extract_observation(obs_dict, setting):
         "gripper_position": gripper_position,
     }
 
+# A wrapper that tries multiple resets if the robot doesn't end up close to a reference
+TARGET_JOINT_POSITION = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+JOINT_TOLERANCE = 0.1
+MAX_RESET_TRIES = 3
+
+def reset_with_check(env, setting):
+    """
+    Calls env.reset() repeatedly until the final joint_position is within JOINT_TOLERANCE
+    of TARGET_JOINT_POSITION, or we exceed MAX_RESET_TRIES.
+    """
+    for attempt in range(MAX_RESET_TRIES):
+        env.reset()
+        time.sleep(0.5)  # Give it a moment
+        obs = extract_observation(env.get_observation(), setting)
+        current_jpos = obs["joint_position"]
+        diff = np.linalg.norm(current_jpos - TARGET_JOINT_POSITION)
+        if diff <= JOINT_TOLERANCE:
+            return  # success
+        else:
+            print(f"Reset attempt {attempt+1} did not meet tolerance (difference={diff:.4f}). Retrying...")
+
+    # If we reach here, we failed
+    print("ERROR: Robot reset did not converge to the target joint positions.")
+    exit(1)
+
+
+# A function to check version before proceeding
+def check_server_version(server_ip):
+    """
+    We do a POST to /version_check with a JSON payload of {"client_version": "1.0"}.
+    If mismatch, we exit.
+    """
+    url = f"http://{server_ip}/version_check"
+    payload = {"client_version": "1.0"}  # Bump this if you update client
+    try:
+        r = requests.post(url, json=payload)
+        if not r.ok:
+            print("Version mismatch with server code. Please pull the latest client code from the real_eval repo!")
+            exit(0)
+        else:
+            #print("Version check succeeded. Server and client match.")
+            pass
+    except Exception as e:
+        print(f"Failed version check. Possibly server not reachable. Error: {e}")
+        exit(0)
+
 
 def run_evaluation(setting, evaluator_name, institution):
     """
     Main evaluation logic
     """
+    # Check version first
+    logging_server_ip = setting.logging_server_ip
+    check_server_version(logging_server_ip)
+
     env = RobotEnv(action_space="joint_velocity", gripper_action_space="position")
     desired_dt = 1/15
-    base_image = setting.third_person_camera  # e.g. "left_image" or "right_image"
+    base_image = setting.third_person_camera
 
-    # Display the current camera feeds so user can confirm
     zeroth_obs = extract_observation(env.get_observation(), setting)
     left_img, right_img = zeroth_obs["left_image"], zeroth_obs["right_image"]
     if left_img is None:
@@ -116,9 +163,7 @@ def run_evaluation(setting, evaluator_name, institution):
         else:
             base_image = "left_image"
 
-    logging_server_ip = setting.logging_server_ip
     get_url = f"http://{logging_server_ip}/get_policies_to_compare"
-    # We pass evaluator_name and institution as 'eval_location'
     params = {
         "eval_location": institution,
         "evaluator_name": evaluator_name,
@@ -136,12 +181,10 @@ def run_evaluation(setting, evaluator_name, institution):
 
     print("\nSession started successfully.")
     print(f"Session ID: {session_id}")
-    print("Beginning evaluation of policies A, B, C, and D...")
+    print("Beginning evaluation of the policy set. We will begin with an A/B evaluation of policies A and B, and then the remainder of the policies (C, D, E...) will be evaluated.\n")
 
-    # We'll store the user’s single language command that we want each policy to follow
     lang_command = input("Enter the language command to be given to all policies: ")
 
-    # Save the current robot observation so that we can display it later
     reset_obs = extract_observation(env.get_observation(), setting)
     left_img, right_img = reset_obs["left_image"], reset_obs["right_image"]
     if left_img is None:
@@ -155,7 +198,7 @@ def run_evaluation(setting, evaluator_name, institution):
     max_timesteps = 400
 
     for i, pol_dict in enumerate(policies):
-        label = pol_dict["label"]  # A/B/C/D
+        label = pol_dict["label"]
         policy_name = pol_dict["policy_name"]
         ip = pol_dict["ip"]
         port = pol_dict["port"]
@@ -165,11 +208,11 @@ def run_evaluation(setting, evaluator_name, institution):
 
         policy_client = WebsocketClientPolicy(ip, port)
 
-        frames_left = []
-        frames_right = []
-        frames_wrist = []
-        episode_data = []
+        # We'll measure average policy inference latency. We'll keep a list of times.
+        inference_latencies = []
 
+        frames_left, frames_right, frames_wrist = [], [], []
+        episode_data = []
         open_loop_horizon = 8
         actions_from_chunk_completed = 0
         pred_action_chunk = None
@@ -177,12 +220,9 @@ def run_evaluation(setting, evaluator_name, institution):
         bar = tqdm(range(max_timesteps))
         for t_step in bar:
             start_time = time.time()
-
-            # Obtain observation
             obs = env.get_observation()
             curr_obs = extract_observation(obs, setting)
 
-            # Collect frames
             if curr_obs["left_image"] is not None:
                 frames_left.append(curr_obs["left_image"])
             if curr_obs["right_image"] is not None:
@@ -190,7 +230,6 @@ def run_evaluation(setting, evaluator_name, institution):
             if curr_obs["wrist_image"] is not None:
                 frames_wrist.append(curr_obs["wrist_image"])
 
-            # If we need a new chunk of actions from the policy server
             if (pred_action_chunk is None) or (actions_from_chunk_completed >= open_loop_horizon):
                 actions_from_chunk_completed = 0
                 request_data = {
@@ -204,22 +243,23 @@ def run_evaluation(setting, evaluator_name, institution):
                     "observation/gripper_position": curr_obs["gripper_position"],
                     "prompt": lang_command,
                 }
+                # measure latency:
+                start_infer = time.time()
                 result = policy_client.infer(request_data)
+                end_infer = time.time()
+                inference_latencies.append(end_infer - start_infer)
+
                 pred_action_chunk = result["actions"][:8]
 
             action = np.array(pred_action_chunk[actions_from_chunk_completed], dtype=np.float32)
             actions_from_chunk_completed += 1
 
-            # Binarize gripper
             if action[-1] > 0.5:
                 action[-1] = 1.0
             else:
                 action[-1] = 0.0
-
-            # Clip
             action = np.clip(action, -1, 1)
 
-            # Step environment
             env.step(action)
 
             step_data = {
@@ -230,7 +270,6 @@ def run_evaluation(setting, evaluator_name, institution):
             }
             episode_data.append(step_data)
 
-            # Check if user typed 't' to terminate
             if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
                 line = sys.stdin.readline().strip().lower()
                 if line == 't':
@@ -242,7 +281,6 @@ def run_evaluation(setting, evaluator_name, institution):
 
         flush_stdin_buffer()
 
-        # Query user for partial success
         partial_succ = 0.0
         while True:
             user_inp = input(f"Please rate partial success of policy {label} in [0..100]: ")
@@ -255,16 +293,14 @@ def run_evaluation(setting, evaluator_name, institution):
                 pass
             print("Invalid input. Must be a number from 0..100.")
 
-        # Automatically infer binary success from partial success
         bin_succ = 1 if partial_succ == 1.0 else 0
 
-        # After policy B is done, ask for preference (A/B/tie) and long-form feedback
         if label == "B":
             flush_stdin_buffer()
             while True:
                 pref = input("Which policy did you prefer, A, B, or 'tie'? ").strip().lower()
                 if pref in ["a", "b", "tie"]:
-                    preference_ab = pref.upper()  # store as "A", "B", or "TIE"
+                    preference_ab = pref.upper()
                     break
                 print("Please enter 'A', 'B', or 'tie' exactly.")
             flush_stdin_buffer()
@@ -274,7 +310,6 @@ def run_evaluation(setting, evaluator_name, institution):
             flush_stdin_buffer()
 
         print()
-        # Construct the left/right/wrist videos if frames exist
         timestamp_str = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 
         def make_video_file(frames_list, suffix):
@@ -289,23 +324,31 @@ def run_evaluation(setting, evaluator_name, institution):
             return (f"video_{suffix}", (f"{suffix}.mp4", vid_bytes, "video/mp4"))
 
         files = {}
-        left_video_file = make_video_file(frames_left, "left")
-        if left_video_file:
-            files[left_video_file[0]] = left_video_file[1]
-        right_video_file = make_video_file(frames_right, "right")
-        if right_video_file:
-            files[right_video_file[0]] = right_video_file[1]
-        wrist_video_file = make_video_file(frames_wrist, "wrist")
-        if wrist_video_file:
-            files[wrist_video_file[0]] = wrist_video_file[1]
+        lvf = make_video_file(frames_left, "left")
+        if lvf:
+            files[lvf[0]] = lvf[1]
+        rvf = make_video_file(frames_right, "right")
+        if rvf:
+            files[rvf[0]] = rvf[1]
+        wvf = make_video_file(frames_wrist, "wrist")
+        if wvf:
+            files[wvf[0]] = wvf[1]
 
-        # Save the episode data as .npz
         npz_out_path = "/tmp/temp_episode_data.npz"
         np.savez_compressed(npz_out_path, data=episode_data)
         with open(npz_out_path, "rb") as f:
             npz_bytes = f.read()
         os.remove(npz_out_path)
         files["npz_file"] = ("episode_data.npz", npz_bytes, "application/octet-stream")
+
+        # compute average latency
+        if inference_latencies:
+            avg_lat = sum(inference_latencies) / len(inference_latencies)
+        else:
+            avg_lat = 0.0
+
+        # We'll store it in "policy_letter" field as: "X;avg_latency=Y"
+        policy_letter_with_latency = f"{label};avg_latency={avg_lat:.3f}"
 
         data = {
             "session_id": session_id,
@@ -318,7 +361,7 @@ def run_evaluation(setting, evaluator_name, institution):
             "policy_port": str(port),
             "third_person_camera_type": base_image,
             "third_person_camera_id": str(setting.cameras.get(base_image, "")),
-            "policy_letter": label,
+            "policy_letter": policy_letter_with_latency,
             "timestamp": timestamp_str,
         }
 
@@ -331,8 +374,7 @@ def run_evaluation(setting, evaluator_name, institution):
         else:
             print("Data upload succeeded.")
 
-        # Ensure env.reset() after each policy.
-        env.reset()
+        reset_with_check(env, setting)
         if i < len(policies) - 1:
             fig, ax = plt.subplots()
             ax.set_title("Reminder: reset scene to the original starting condition.\nFor reference, this is what your starting state looked like:")
@@ -374,7 +416,6 @@ if __name__ == "__main__":
 
     setting: EvalConfig = load_config(args.config_path)
 
-    # Check if evaluator_name/institution exist in the YAML. If so, give the user a choice to keep or change.
     default_evaluator_name = getattr(setting, "evaluator_name", None)
     default_institution = getattr(setting, "institution", None)
 
