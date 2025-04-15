@@ -1,4 +1,4 @@
-# README
+# RoboArena
 
 Welcome to RoboArena, our distributed robot evaluation benchmark! This README explains how to run the **evaluation client** script, how to configure it for your institution’s setup, and tips on providing **high-quality, detailed feedback** that will help us improve our robot learning benchmark.
 
