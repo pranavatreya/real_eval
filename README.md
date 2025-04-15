@@ -7,7 +7,7 @@ Welcome to RoboArena, our distributed robot evaluation benchmark! This README ex
 ## Installation
 
 1. **Clone or copy** this repository.
-2. Ensure you have **Python 3.9+** installed.
+2. Ensure you have **Python 3.7+** installed.
 3. Install dependencies.
 
    ```bash
