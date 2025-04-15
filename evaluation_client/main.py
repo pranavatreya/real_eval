@@ -25,19 +25,29 @@ import faulthandler
 
 faulthandler.enable()
 
+
 def extract_observation(obs_dict, setting):
     """Extract left/right/wrist images if available, plus robot state."""
+    def is_camera_image(camera_name: str, observation_key: str) -> bool:
+        """Returns True if the observation is for the specified camera. False, otherwise."""
+        if camera_name not in setting.cameras:
+            # For some setups, certain cameras may not be present (e.g., the right camera at Stanford)
+            return False
+
+        camera_id: str = str(setting.cameras[camera_name])
+        return camera_id in observation_key and "left" in observation_key
+
     image_observations = obs_dict["image"]
     left_image, right_image, wrist_image = None, None, None
 
     # The user’s config file may define which cameras correspond to 'left','right','wrist'
     # e.g. setting.cameras["left"] might be "24259877", etc.
     for key in image_observations.keys():
-        if str(setting.cameras["left"]) in key and "left" in key:
+        if is_camera_image("left", key):
             left_image = image_observations[key]
-        elif str(setting.cameras["right"]) in key and "left" in key:
+        elif is_camera_image("right", key):
             right_image = image_observations[key]
-        elif str(setting.cameras["wrist"]) in key and "left" in key:
+        elif is_camera_image("wrist", key):
             wrist_image = image_observations[key]
 
     def process_image(img):
