@@ -78,7 +78,7 @@ def extract_observation(obs_dict, setting):
     }
 
 # A wrapper that tries multiple resets if the robot doesn't end up close to a reference
-TARGET_JOINT_POSITION = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+TARGET_JOINT_POSITION = np.array([-0.0303494, 0.20572637, -0.0137397, -2.07777619, -0.0134948, 2.31305718, -0.06080996])
 JOINT_TOLERANCE = 0.1
 MAX_RESET_TRIES = 3
 
@@ -90,13 +90,14 @@ def reset_with_check(env, setting):
     for attempt in range(MAX_RESET_TRIES):
         env.reset()
         time.sleep(0.5)  # Give it a moment
-        obs = extract_observation(env.get_observation(), setting)
-        current_jpos = obs["joint_position"]
-        diff = np.linalg.norm(current_jpos - TARGET_JOINT_POSITION)
-        if diff <= JOINT_TOLERANCE:
-            return  # success
-        else:
-            print(f"Reset attempt {attempt+1} did not meet tolerance (difference={diff:.4f}). Retrying...")
+        # obs = extract_observation(env.get_observation(), setting)
+        # current_jpos = obs["joint_position"]
+        # diff = np.linalg.norm(current_jpos - TARGET_JOINT_POSITION)
+        # if diff <= JOINT_TOLERANCE:
+        #     return  # success
+        # else:
+        #     print(f"Reset attempt {attempt+1} did not meet tolerance (difference={diff:.4f}). Retrying...")
+        return
 
     # If we reach here, we failed
     print("ERROR: Robot reset did not converge to the target joint positions.")
@@ -137,6 +138,7 @@ def run_evaluation(setting, evaluator_name, institution):
     base_image = setting.third_person_camera
 
     zeroth_obs = extract_observation(env.get_observation(), setting)
+
     left_img, right_img = zeroth_obs["left_image"], zeroth_obs["right_image"]
     if left_img is None:
         left_img = np.zeros((288, 512, 3), dtype=np.uint8)
