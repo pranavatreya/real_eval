@@ -23,8 +23,8 @@ Welcome to RoboArena, our distributed robot evaluation benchmark! This README ex
 ## Running the Evaluation
 
 1. Create or edit a YAML config file (similar to `configs/berkeley.yaml`) that contains:
-   - 'evaluator_name': Your full name, or some ID you would like to use for evaluators at your university
-   - 'institution': Your university
+   - `evaluator_name`: Your full name, or some ID you would like to use for evaluators at your university
+   - `institution`: Your university
    - `logging_server_ip`: **Always** set this to `34.55.101.123:5000`.
    - `third_person_camera`: The default vantage (e.g. `right_image` or `left_image`).
    - A `cameras` section that identifies the camera `name` and `id` for your institution’s camera setup.
