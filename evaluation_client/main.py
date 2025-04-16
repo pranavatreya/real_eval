@@ -376,7 +376,8 @@ def run_evaluation(setting, evaluator_name, institution):
         else:
             print("Data upload succeeded.")
 
-        reset_with_check(env, setting)
+        #reset_with_check(env, setting)
+        env.reset()
         if i < len(policies) - 1:
             fig, ax = plt.subplots()
             ax.set_title("Reminder: reset scene to the original starting condition.\nFor reference, this is what your starting state looked like:")
