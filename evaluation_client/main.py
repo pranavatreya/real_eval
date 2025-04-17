@@ -77,33 +77,6 @@ def extract_observation(obs_dict, setting):
         "gripper_position": gripper_position,
     }
 
-# A wrapper that tries multiple resets if the robot doesn't end up close to a reference
-TARGET_JOINT_POSITION = np.array([-0.0303494, 0.20572637, -0.0137397, -2.07777619, -0.0134948, 2.31305718, -0.06080996])
-JOINT_TOLERANCE = 0.1
-MAX_RESET_TRIES = 3
-
-def reset_with_check(env, setting):
-    """
-    Calls env.reset() repeatedly until the final joint_position is within JOINT_TOLERANCE
-    of TARGET_JOINT_POSITION, or we exceed MAX_RESET_TRIES.
-    """
-    for attempt in range(MAX_RESET_TRIES):
-        env.reset()
-        time.sleep(0.5)  # Give it a moment
-        # obs = extract_observation(env.get_observation(), setting)
-        # current_jpos = obs["joint_position"]
-        # diff = np.linalg.norm(current_jpos - TARGET_JOINT_POSITION)
-        # if diff <= JOINT_TOLERANCE:
-        #     return  # success
-        # else:
-        #     print(f"Reset attempt {attempt+1} did not meet tolerance (difference={diff:.4f}). Retrying...")
-        return
-
-    # If we reach here, we failed
-    print("ERROR: Robot reset did not converge to the target joint positions.")
-    exit(1)
-
-
 # A function to check version before proceeding
 def check_server_version(server_ip):
     """
@@ -310,6 +283,21 @@ def run_evaluation(setting, evaluator_name, institution):
                 "Now please provide long-form textual feedback comparing policy A vs. policy B:\n"
             )
             flush_stdin_buffer()
+            comparative_feedback = comparative_feedback.strip() # remove any starting or ending whitespace
+            while True:
+                print()
+                print("Thanks for entering long-form feedback! This is the feedback you gave:\n")
+                print("###############################################")
+                print(comparative_feedback)
+                print("###############################################\n")
+                should_move_on = input("If this looks good, hit 'y' to move on, otherwise hit 'n' and we'll give you a chance to enter feedback again: ")
+                flush_stdin_buffer()
+                if should_move_on.strip().lower() == 'y':
+                    break
+                comparative_feedback = input(
+                    "Please provide long-form textual feedback comparing policy A vs. policy B:\n"
+                )
+                flush_stdin_buffer()
 
         print()
         timestamp_str = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
@@ -376,8 +364,13 @@ def run_evaluation(setting, evaluator_name, institution):
         else:
             print("Data upload succeeded.")
 
-        #reset_with_check(env, setting)
         env.reset()
+        reset_status = input("Did the robot return to its reset pose? Sometimes it may fail to do so (y/n): ")
+        while reset_status.strip().lower() != "y":
+            print("Attempting reset again...")
+            env.reset()
+            reset_status = input("Did the robot return to its reset pose? Sometimes it may fail to do so (y/n): ")
+
         if i < len(policies) - 1:
             fig, ax = plt.subplots()
             ax.set_title("Reminder: reset scene to the original starting condition.\nFor reference, this is what your starting state looked like:")
