@@ -1,25 +1,6 @@
-# simple standalone dashboard for evaluation data
-# --------------------------------------------------------------
-# This script starts a small Flask web server that displays a 2×2 grid
-# of plots (PNG images encoded inline) and refreshes them every 4 hours.
-# --------------------------------------------------------------
-#   • Upper-left   – Bar chart of average partial-success per policy.
-#   • Upper-right  – Table (html) of Elo leaderboard computed from
-#                     pair-wise A/B preference feedback.
-#   • Lower-left   – Bar chart of evaluation counts per university
-#                     (target = 100 shown as horizontal line).
-#   • Lower-right  – Pie chart – preferences: A preferred / B preferred / Tie.
-#
-# The plots are regenerated from the database every 4 hours automatically,
-# but you can also force refresh by visiting /refresh once logged in.
-# --------------------------------------------------------------
-
-import base64
-import io
-import threading
-import time
+import base64, io, threading, time, datetime
 from collections import defaultdict
-import datetime
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -40,14 +21,16 @@ CACHE = {
     "elo_table": "",
     "uni_bar": "",
     "preference_pie": "",
+    "progress_hist": "",
     "last_update": "never"
 }
-
 REFRESH_INTERVAL_H = 4  # hours
 
 # --------------------------------------------------------------
-#  Utility – matplotlib figure -> base64 <img> string
+#  Helpers
 # --------------------------------------------------------------
+EXCLUDE_POLICIES = {"PI0", "PI0_FAST"}  # exclude everywhere
+
 def fig_to_base64(fig):
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight")
@@ -57,14 +40,19 @@ def fig_to_base64(fig):
     return f"<img src='data:image/png;base64,{b64}'/>"
 
 # --------------------------------------------------------------
-#  (1) Average partial-success per policy (VALID sessions only)
+#  (1) Average partial‑success per policy
 # --------------------------------------------------------------
 def build_policy_bar(df_episodes):
-    grp = df_episodes.groupby("policy_name")["partial_success"].mean().sort_values(ascending=False)
+    df = df_episodes[~df_episodes["policy_name"].str.upper().isin(EXCLUDE_POLICIES)]
+    grp = (
+        df.groupby("policy_name")["partial_success"]
+        .mean()
+        .sort_values(ascending=False)
+    )
     fig, ax = plt.subplots(figsize=(8, 4))
     grp.plot(kind="bar", ax=ax, color="steelblue")
-    ax.set_ylabel("Average partial-success")
-    ax.set_title("Average partial-success by policy")
+    ax.set_ylabel("Average partial‑success")
+    ax.set_title("Average partial‑success by policy")
     ax.set_ylim(0, 1)
     ax.grid(axis="y", ls=":", alpha=0.5)
     return fig_to_base64(fig)
@@ -78,45 +66,45 @@ def expected_score(r_a, r_b):
 def build_elo_table(df_sessions):
     prefs = []
     for _, row in df_sessions.iterrows():
+        # skip if either A or B is in the exclude list
+        if row["policyA_name"].upper() in EXCLUDE_POLICIES or \
+           row["policyB_name"].upper() in EXCLUDE_POLICIES:
+            continue
         notes = row["evaluation_notes"] or ""
-        lines = [l.strip().upper() for l in notes.split("\n") if l.strip()]
-        pref = None
-        for l in lines:
+        for l in notes.split("\n"):
+            l = l.strip().upper()
             if l.startswith("PREFERENCE="):
-                pref = l.split("=")[1]
+                prefs.append((row["policyA_name"], row["policyB_name"], l.split("=")[1]))
                 break
-        if pref:
-            prefs.append((row["policyA_name"], row["policyB_name"], pref))
 
     elo = defaultdict(lambda: 1200.0)
     games = defaultdict(int)
 
-    for pA, pB, outcome in prefs[::-1]:
+    for pA, pB, outcome in prefs[::-1]:  # oldest first
         rA, rB = elo[pA], elo[pB]
         eA, eB = expected_score(rA, rB), expected_score(rB, rA)
-        if outcome == "A":
-            sA, sB = 1.0, 0.0
-        elif outcome == "B":
-            sA, sB = 0.0, 1.0
-        else:
-            sA = sB = 0.5
+        if outcome == "A":   sA, sB = 1.0, 0.0
+        elif outcome == "B": sA, sB = 0.0, 1.0
+        else:                sA = sB = 0.5
         K = 32
         elo[pA] = rA + K * (sA - eA)
         elo[pB] = rB + K * (sB - eB)
         games[pA] += 1
         games[pB] += 1
 
-    leaderboard = pd.DataFrame({
-        "policy": list(elo.keys()),
-        "elo": list(elo.values()),
-        "n_eval": [games[p] for p in elo.keys()]
-    }).sort_values("elo", ascending=False)
-
-    html_table = leaderboard.to_html(index=False, classes="table table-striped text-center")
-    return html_table
+    leaderboard = (
+        pd.DataFrame({
+            "policy": elo.keys(),
+            "elo": elo.values(),
+            "n_eval": [games[p] for p in elo.keys()]
+        })
+        .sort_values("elo", ascending=False)
+    )
+    return leaderboard.to_html(index=False,
+                               classes="table table-striped text-center")
 
 # --------------------------------------------------------------
-#  (3) Evaluations per university (VALID only)
+#  (3) Evaluations per university
 # --------------------------------------------------------------
 UNI_CANONICAL = {
     "UNIVERSITY OF CALIFORNIA BERKELEY": "Berkeley",
@@ -135,8 +123,8 @@ UNI_CANONICAL = {
     "UT AUSTIN": "UT Austin",
     "UNIVERSITY OF TEXAS AT AUSTIN": "UT Austin"
 }
-
-TARGET_UNIS = ["Berkeley", "Stanford", "UW", "UPenn", "UMontreal", "Yonsei", "UT Austin"]
+TARGET_UNIS = ["Berkeley", "Stanford", "UW", "UPenn",
+               "UMontreal", "Yonsei", "UT Austin"]
 
 def canonicalize_uni(raw):
     if not raw:
@@ -150,9 +138,7 @@ def canonicalize_uni(raw):
 def build_uni_bar(df_sessions):
     df_sessions["uni"] = df_sessions["evaluation_location"].apply(canonicalize_uni)
     counts = df_sessions["uni"].value_counts()
-    for u in TARGET_UNIS:
-        counts.loc[u] = counts.get(u, 0)
-    #counts = counts[TARGET_UNIS]
+    # ensure all target unis are present + "Other"
     counts = counts.reindex(TARGET_UNIS + ["Other"]).fillna(0)
 
     fig, ax = plt.subplots(figsize=(10, 4))
@@ -168,18 +154,36 @@ def build_uni_bar(df_sessions):
 # --------------------------------------------------------------
 def build_preference_pie(df_sessions):
     counts = {"A": 0, "B": 0, "TIE": 0}
-    for notes in df_sessions["evaluation_notes"]:
-        if not notes:
+    for _, row in df_sessions.iterrows():
+        if row["policyA_name"].upper() in EXCLUDE_POLICIES or \
+           row["policyB_name"].upper() in EXCLUDE_POLICIES:
             continue
+        notes = row["evaluation_notes"] or ""
         for line in notes.split("\n"):
             line = line.strip().upper()
             if line.startswith("PREFERENCE="):
-                val = line.split("=")[1]
-                counts[val] += 1
+                counts[line.split("=")[1]] += 1
     fig, ax = plt.subplots(figsize=(4, 4))
     labels = ["A preferred", "B preferred", "Tie"]
-    ax.pie([counts["A"], counts["B"], counts["TIE"]], labels=labels, autopct="%1.0f%%", startangle=140)
+    ax.pie([counts["A"], counts["B"], counts["TIE"]],
+           labels=labels, autopct="%1.0f%%", startangle=140)
     ax.set_title("A/B preference outcomes")
+    return fig_to_base64(fig)
+
+# --------------------------------------------------------------
+#  (5) Progress‑score histogram (10‑pt bins)
+# --------------------------------------------------------------
+def build_progress_hist(df_episodes):
+    df = df_episodes[~df_episodes["policy_name"].str.upper().isin(EXCLUDE_POLICIES)]
+    scores = (df["partial_success"].dropna() * 100).clip(0, 100)
+    fig, ax = plt.subplots(figsize=(10, 3.5))
+    ax.hist(scores, bins=np.arange(0, 110, 10), color="purple", edgecolor="black",
+            rwidth=0.85)
+    ax.set_xlabel("Progress score (%)")
+    ax.set_ylabel("# episodes")
+    ax.set_title("Distribution of progress scores (all VALID episodes)")
+    ax.set_xticks(np.arange(0, 110, 10))
+    ax.grid(axis="y", ls=":", alpha=0.5)
     return fig_to_base64(fig)
 
 # --------------------------------------------------------------
@@ -193,19 +197,17 @@ def refresh_cache():
         """), conn)
 
         eps = pd.read_sql(text("""
-            SELECT * FROM episodes e
-            WHERE exists (
-                SELECT 1 FROM sessions s
-                WHERE s.id = e.session_id
-                AND s.evaluation_notes ILIKE 'VALID_SESSION:%'
-            )
+            SELECT e.* FROM episodes e
+            JOIN sessions s ON s.id = e.session_id
+            WHERE s.evaluation_notes ILIKE 'VALID_SESSION:%'
         """), conn)
 
-    CACHE["policy_bar"] = build_policy_bar(eps)
-    CACHE["elo_table"] = build_elo_table(ses)
-    CACHE["uni_bar"] = build_uni_bar(ses)
-    CACHE["preference_pie"] = build_preference_pie(ses)
-    CACHE["last_update"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    CACHE["policy_bar"]    = build_policy_bar(eps)
+    CACHE["elo_table"]     = build_elo_table(ses)
+    CACHE["uni_bar"]       = build_uni_bar(ses)
+    CACHE["preference_pie"]= build_preference_pie(ses)
+    CACHE["progress_hist"] = build_progress_hist(eps)
+    CACHE["last_update"]   = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
     print(f"[dashboard] cache refreshed @ {CACHE['last_update']}")
 
 # --------------------------------------------------------------
@@ -228,14 +230,22 @@ TEMPLATE = """
 <html lang='en'>
 <head>
   <meta charset='utf-8'>
-  <title>Real-Eval Dashboard</title>
+  <title>Real‑Eval Dashboard</title>
   <style>
-    body {font-family: Arial, sans-serif; margin: 0; padding: 0; display:flex; justify-content:center;}
-    .grid {display: grid; grid-template-columns: 1fr 1fr; grid-gap: 20px; max-width: 1600px; padding: 20px;}
-    .cell {border: 1px solid #ccc; padding: 10px; text-align:center;}
-    .cell h3 {margin-top:0;}
-    table {width:100%; border-collapse: collapse;}
-    th,td {padding:4px;border:1px solid #ddd;}
+    body {font-family: Arial, sans-serif; margin:0; padding:0;
+          display:flex; justify-content:center;}
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto auto;
+      grid-gap: 20px;
+      max-width: 1600px;
+      padding: 20px;
+    }
+    .cell {border:1px solid #ccc; padding:10px; text-align:center;}
+    .full {grid-column: 1 / span 2;}
+    table {width:100%; border-collapse:collapse;}
+    th,td {padding:4px; border:1px solid #ddd;}
   </style>
   <meta http-equiv='refresh' content='900'>
 </head>
@@ -245,6 +255,7 @@ TEMPLATE = """
     <div class='cell'><h3>Elo leaderboard</h3>{{ elo_table|safe }}</div>
     <div class='cell'>{{ uni_bar|safe }}</div>
     <div class='cell'>{{ preference_pie|safe }}</div>
+    <div class='cell full'>{{ progress_hist|safe }}</div>
   </div>
 </body>
 </html>
