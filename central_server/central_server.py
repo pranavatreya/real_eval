@@ -131,7 +131,7 @@ def cleanup_stale_sessions():
 # -------------------------------
 # Version-check endpoint
 # -------------------------------
-SERVER_VERSION = "1.0"  # Make sure to bump this up whenever you update the server/client code
+SERVER_VERSION = "1.1"  # Make sure to bump this up whenever you update the server/client code
 
 @app.route("/version_check", methods=["POST"])
 def version_check():
