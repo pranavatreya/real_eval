@@ -80,11 +80,11 @@ def extract_observation(obs_dict, setting):
 # A function to check version before proceeding
 def check_server_version(server_ip):
     """
-    We do a POST to /version_check with a JSON payload of {"client_version": "1.0"}.
+    We do a POST to /version_check with a JSON payload of {"client_version": "1.1"}.
     If mismatch, we exit.
     """
     url = f"http://{server_ip}/version_check"
-    payload = {"client_version": "1.0"}  # Bump this if you update client
+    payload = {"client_version": "1.1"}  # Bump this if you update client
     try:
         r = requests.post(url, json=payload)
         if not r.ok:
