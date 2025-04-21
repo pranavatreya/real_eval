@@ -1,3 +1,9 @@
+# RoboArena specific
+# Don't commit as it contains credentials!
+configs/llm_inference.yaml
+# This is where video recordings are downloaded to
+output/evaluation_data/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -169,3 +175,6 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# For MacOS users
+.DS_Store
