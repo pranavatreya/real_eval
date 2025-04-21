@@ -89,6 +89,12 @@ After you finish evaluating policies A and B, the script prompts for **long-form
 
 ---
 
+## Troubleshooting
+
+**Connection to central server succeeds, but to policy servers fail**: We've observed two instances where university firewalls block IP traffic to bore.pub, the IP forwarding service we are using to host our policy servers. This issue should be on the rarer side, but nevertheless it can be resolved by either (1) connecting to a hotspot instead of university wifi, or (2) setting up a VPN that allows you to bypass the university firewall.
+
+---
+
 **Thank you** for your contributions to this benchmark!
 
 ---
