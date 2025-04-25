@@ -6,6 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from flask import Flask, render_template_string, redirect, url_for
 from sqlalchemy import create_engine, text
+from zoneinfo import ZoneInfo
 
 # --------------------------------------------------------------
 #  Database connection
@@ -115,6 +116,8 @@ UNI_CANONICAL = {
     "UNIVERSITY OF PENNSYLVANIA": "UPenn",
     "UPENN": "UPenn",
     "UNIVERSITY OF WASHINGTON": "UW",
+    "UNVERSITY OF WASHINGTON": "UW",
+    "UNIVERSITY OF WASHGINTON": "UW",
     "UW": "UW",
     "MILA": "UMontreal",
     "UNIVERSITY MONTREAL": "UMontreal",
@@ -133,6 +136,8 @@ def canonicalize_uni(raw):
     for key, canon in UNI_CANONICAL.items():
         if key in upper:
             return canon
+    print(f"Error: a university was not able to be matched: {raw}")
+    exit()
     return "Other"
 
 def build_uni_bar(df_sessions):
@@ -207,7 +212,8 @@ def refresh_cache():
     CACHE["uni_bar"]       = build_uni_bar(ses)
     CACHE["preference_pie"]= build_preference_pie(ses)
     CACHE["progress_hist"] = build_progress_hist(eps)
-    CACHE["last_update"]   = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    pt_now = datetime.datetime.now(ZoneInfo("America/Los_Angeles"))
+    CACHE["last_update"] = pt_now.strftime("%Y-%m-%d %H:%M PT")
     print(f"[dashboard] cache refreshed @ {CACHE['last_update']}")
 
 # --------------------------------------------------------------
@@ -250,6 +256,9 @@ TEMPLATE = """
   <meta http-equiv='refresh' content='900'>
 </head>
 <body>
+  <p style="text-align:center; font-size:0.9em; margin:8px 0">
+    Last refreshed (Pacific Time): {{ last_update }}
+  </p>
   <div class='grid'>
     <div class='cell'>{{ policy_bar|safe }}</div>
     <div class='cell'><h3>Elo leaderboard</h3>{{ elo_table|safe }}</div>
