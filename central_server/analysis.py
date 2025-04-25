@@ -30,9 +30,9 @@ Usage:
 
 
 BASE_DIR = os.path.dirname(__file__)
-ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, '..'))
-OUTPUT_DIR = os.path.abspath(os.path.join(ROOT_DIR, 'output'))
-ANALYSIS_JSON_PATH = os.path.join(OUTPUT_DIR, 'policy_analysis.json')
+ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, ".."))
+OUTPUT_DIR = os.path.abspath(os.path.join(ROOT_DIR, "output"))
+ANALYSIS_JSON_PATH = os.path.join(OUTPUT_DIR, "policy_analysis.json")
 
 app = Flask(
     __name__,
@@ -101,18 +101,30 @@ class Cameras:
         """
         if self.left_gcs_path:
             self.left_local_path = os.path.join(output_path, self.left_gcs_path)
-            download_from_gcs(f"gs://{gcs_bucket}/{self.left_gcs_path}", self.left_local_path)
-            self.left_first_frame_local_path = self.extract_first_frame(self.left_local_path)
+            download_from_gcs(
+                f"gs://{gcs_bucket}/{self.left_gcs_path}", self.left_local_path
+            )
+            self.left_first_frame_local_path = self.extract_first_frame(
+                self.left_local_path
+            )
 
         if self.right_gcs_path:
             self.right_local_path = os.path.join(output_path, self.right_gcs_path)
-            download_from_gcs(f"gs://{gcs_bucket}/{self.right_gcs_path}", self.right_local_path)
-            self.right_first_frame_local_path = self.extract_first_frame(self.right_local_path)
+            download_from_gcs(
+                f"gs://{gcs_bucket}/{self.right_gcs_path}", self.right_local_path
+            )
+            self.right_first_frame_local_path = self.extract_first_frame(
+                self.right_local_path
+            )
 
         if self.wrist_gcs_path:
             self.wrist_local_path = os.path.join(output_path, self.wrist_gcs_path)
-            download_from_gcs(f"gs://{gcs_bucket}/{self.wrist_gcs_path}", self.wrist_local_path)
-            self.wrist_first_frame_local_path = self.extract_first_frame(self.wrist_local_path)
+            download_from_gcs(
+                f"gs://{gcs_bucket}/{self.wrist_gcs_path}", self.wrist_local_path
+            )
+            self.wrist_first_frame_local_path = self.extract_first_frame(
+                self.wrist_local_path
+            )
 
     def sample_video(self) -> str:
         """
@@ -152,7 +164,8 @@ class HeadToHead:
         """
         Generate the full notes of the head-to-head evaluation in perspective of `perspective_policy` policy`.
         """
-        return textwrap.dedent(f"""
+        return textwrap.dedent(
+            f"""
         Policy A or B: {self.perspective_policy} was Policy {"A" if self.was_policy_a else "B"}
         Result: {self.perspective_policy} {"tied" if self.tied else "won" if self.won else "lost"}
         Evaluation notes: {self.ab_notes}
@@ -196,7 +209,9 @@ class Episode:
         image_paths = [p for p in image_paths if p and os.path.exists(p)]
 
         if not image_paths:
-            logger.warning(f"No valid first-frame images found for session {self.session.id}")
+            logger.warning(
+                f"No valid first-frame images found for session {self.session.id}"
+            )
             return
 
         prompt = (
@@ -237,15 +252,19 @@ class Episode:
         """
         Generate a report that summarizes the episode with the head-to-head evaluation notes.
         """
-        assert self.head_to_head, "Episode has no head-to-head evaluation, so nothing to report."
-        return textwrap.dedent(f"""Session ID: {self.session.id}
+        assert (
+            self.head_to_head
+        ), "Episode has no head-to-head evaluation, so nothing to report."
+        return textwrap.dedent(
+            f"""Session ID: {self.session.id}
 Task: {self.session.prompt}
 
 Scene Setup and Task Analysis
 {self.annotations}
 
 Head-to-Head Comparison
-{self.head_to_head.full_notes.strip()}""")
+{self.head_to_head.full_notes.strip()}"""
+        )
 
 
 @dataclass
@@ -300,9 +319,11 @@ def get_all_valid_policies() -> dict[str, Policy]:
     db = SessionLocal()
 
     # Gather all policies except PI0 and PI0_FAST
-    policies = db.query(PolicyModel).filter(
-        PolicyModel.unique_policy_name.notin_(["PI0", "PI0_FAST"])
-    ).all()
+    policies = (
+        db.query(PolicyModel)
+        .filter(PolicyModel.unique_policy_name.notin_(["PI0", "PI0_FAST"]))
+        .all()
+    )
     logger.info(f"Found {len(policies)} valid policies.")
 
     return {
@@ -325,7 +346,9 @@ def download_from_gcs(gcs_path: str, destination_path: str) -> None:
 
     # The slash is needed to download the contents of the folder to `destination_path`
     fs.get(gcs_path, destination_path)
-    assert os.path.exists(destination_path), f"Failed to download {gcs_path} to {destination_path}."
+    assert os.path.exists(
+        destination_path
+    ), f"Failed to download {gcs_path} to {destination_path}."
 
 
 def populate_policy_episodes(policies: dict[str, Policy], gcs_bucket: str) -> None:
@@ -337,10 +360,14 @@ def populate_policy_episodes(policies: dict[str, Policy], gcs_bucket: str) -> No
     # Gather all valid evaluation sessions.
     # Valid eval sessions have VALID_SESSION: in the beginning of `evaluation_notes`
     # and check that episodes is not empty
-    sessions = db.query(SessionModel).filter(
-        SessionModel.evaluation_notes.like("VALID_SESSION:%"),
-        SessionModel.episodes.any(),
-    ).all()
+    sessions = (
+        db.query(SessionModel)
+        .filter(
+            SessionModel.evaluation_notes.like("VALID_SESSION:%"),
+            SessionModel.episodes.any(),
+        )
+        .all()
+    )
     logger.info(f"Found {len(sessions)} valid evaluation sessions.")
 
     for session_row in tqdm(sessions):
@@ -426,10 +453,14 @@ def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> 
         logger.info(f"Generating full analysis report for policy {policy_name}.")
 
         # Gather all the head-to-head reports
-        all_head_to_head_episodes: list[Episode] = policy.get_all_head_to_head_episodes()
+        all_head_to_head_episodes: list[Episode] = (
+            policy.get_all_head_to_head_episodes()
+        )
         reports: list[str] = [episode.report for episode in all_head_to_head_episodes]
         session_id_to_video_path: dict[str, str] = {
-            str(episode.session.id): os.path.relpath(episode.cameras.sample_video(), OUTPUT_DIR)
+            str(episode.session.id): os.path.relpath(
+                episode.cameras.sample_video(), OUTPUT_DIR
+            )
             for episode in all_head_to_head_episodes
         }
         session_id_to_prompt: dict[str, str] = {
@@ -438,11 +469,13 @@ def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> 
         }
 
         # Construct the prompt to get the summary
-        episode_text = '\n\n'.join(
-            f"========== Episode Report #{i + 1} ==========\n{report}" for i, report in enumerate(reports)
+        episode_text = "\n\n".join(
+            f"========== Episode Report #{i + 1} ==========\n{report}"
+            for i, report in enumerate(reports)
         )
 
-        prompt = textwrap.dedent(f"""\
+        prompt = textwrap.dedent(
+            f"""\
         We are evaluating a policy named {policy_name} deployed on a robot arm to perform various manipulation tasks.
         This policy was compared head-to-head against other policies across multiple episodes. Each episode includes:
         - A session ID
@@ -487,7 +520,8 @@ def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> 
         The episode reports are as follows:
 
         {episode_text}
-        """)
+        """
+        )
 
         # Generate full report
         # Run inference Using a strong reasoning model to generate this analysis report.
@@ -499,7 +533,8 @@ def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> 
         )
         full_report: str = response["choices"][0]["message"]["content"]
 
-        summary_prompt = textwrap.dedent(f"""\
+        summary_prompt = textwrap.dedent(
+            f"""\
 Given the following full evaluation report of a robot manipulation policy, generate a concise, high-quality summary that captures the main findings from sections 2 through 8.
 
 Each bullet should summarize the corresponding section in a few sentence fragments, focusing on the most important points. Avoid excessive detail, ensure clarity and correctness.
@@ -524,7 +559,8 @@ Place a line break between each bullet point. Don't output anything before or af
 
 Here is the full report to summarize:
 
-{full_report}""")
+{full_report}"""
+        )
 
         # Summarize the full report
         summary_response, _ = openai_client.run_inference(
@@ -552,10 +588,10 @@ Here is the full report to summarize:
         logger.info(f"Saved analysis results to {ANALYSIS_JSON_PATH}.")
 
 
-@app.route('/')
+@app.route("/")
 def index():
     # pass the raw JSON into the template
-    return render_template('analysis.html')
+    return render_template("analysis.html")
 
 
 @app.route("/policy_analysis.json")
@@ -563,7 +599,7 @@ def serve_policy_json():
     return send_from_directory(OUTPUT_DIR, "policy_analysis.json")
 
 
-@app.route('/videos/<path:video_path>')
+@app.route("/videos/<path:video_path>")
 def serve_video(video_path):
     """
     Serve videos stored under OUTPUT_DIR.
@@ -577,7 +613,11 @@ def serve_video(video_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--skip-refresh", action="store_true", help="Skip regeneration and use cached JSON file")
+    parser.add_argument(
+        "--skip-refresh",
+        action="store_true",
+        help="Skip regeneration and use cached JSON file",
+    )
     args = parser.parse_args()
 
     gcs_bucket_name: str = "distributed_robot_eval"
@@ -597,7 +637,9 @@ if __name__ == "__main__":
     # Connect to the database
     # TODO: use the localhost url
     database_url = "postgresql://centralserver:m3lxcf830x20g4@localhost:5432/real_eval"
-    database_url = "postgresql://centralserver:m3lxcf830x20g4@34.55.101.123:5432/real_eval"
+    database_url = (
+        "postgresql://centralserver:m3lxcf830x20g4@34.55.101.123:5432/real_eval"
+    )
     SessionLocal = initialize_database_connection(database_url)
     logger.info(f"Database connection to {database_url} initialized.")
 
@@ -611,7 +653,9 @@ if __name__ == "__main__":
         analyze_head_to_head_evaluations_per_policy(valid_policies)
         logger.info("Analysis completed.")
     else:
-        assert os.path.exists(ANALYSIS_JSON_PATH), f"Cached analysis JSON file not found: {ANALYSIS_JSON_PATH}"
+        assert os.path.exists(
+            ANALYSIS_JSON_PATH
+        ), f"Cached analysis JSON file not found: {ANALYSIS_JSON_PATH}"
         logger.info("Skipping analysis. Using cached analysis JSON file.")
 
     # Start the Flask server
