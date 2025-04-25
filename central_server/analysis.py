@@ -1,4 +1,5 @@
 from dataclasses import asdict, dataclass, field
+import argparse
 import json
 import os
 import pdb
@@ -14,6 +15,18 @@ from database.schema import PolicyModel, SessionModel
 from database.connection import initialize_database_connection
 from llm.openai_client import OpenAIClient
 from logger import logger
+
+"""
+This script analyzes the performance of robot manipulation policies based on evaluation sessions.
+
+It downloads camera recordings, processes them, and generates reports using LLMs.
+
+Usage:
+    python analysis.py
+
+    python analysis.py --skip-refresh
+    --skip-refresh: Skip the regeneration of the analysis JSON file and use the cached version.
+"""
 
 
 BASE_DIR = os.path.dirname(__file__)
@@ -563,6 +576,10 @@ def serve_video(video_path):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--skip-refresh", action="store_true", help="Skip regeneration and use cached JSON file")
+    args = parser.parse_args()
+
     gcs_bucket_name: str = "distributed_robot_eval"
     output_path: str = "output"
     cache_path: str = os.path.join(output_path, "cache")
@@ -584,14 +601,18 @@ if __name__ == "__main__":
     SessionLocal = initialize_database_connection(database_url)
     logger.info(f"Database connection to {database_url} initialized.")
 
-    # Get all valid policies and populate them with the episodes across all sessions. Download recordings.
-    valid_policies: dict[str, Policy] = get_all_valid_policies()
-    populate_policy_episodes(valid_policies, gcs_bucket_name)
+    if not args.skip_refresh:
+        # Get all valid policies and populate them with the episodes across all sessions. Download recordings.
+        valid_policies: dict[str, Policy] = get_all_valid_policies()
+        populate_policy_episodes(valid_policies, gcs_bucket_name)
 
-    # ANALYSIS
-    # 1. For each policy, analyze all its head-to-head comparisons and notes from all of its episodes
-    analyze_head_to_head_evaluations_per_policy(valid_policies)
-    logger.info("Analysis completed.")
+        # ANALYSIS
+        # 1. For each policy, analyze all its head-to-head comparisons and notes from all of its episodes
+        analyze_head_to_head_evaluations_per_policy(valid_policies)
+        logger.info("Analysis completed.")
+    else:
+        assert os.path.exists(ANALYSIS_JSON_PATH), f"Cached analysis JSON file not found: {ANALYSIS_JSON_PATH}"
+        logger.info("Skipping analysis. Using cached analysis JSON file.")
 
     # Start the Flask server
     logger.info(f"Serving the analysis page.")
