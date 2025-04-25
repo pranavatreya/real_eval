@@ -63,6 +63,29 @@ h1 {
   cursor: pointer;
 }
 
+.episode-search {
+  margin: 1rem 0;
+  padding: 0.5rem;
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.episode-list {
+  max-height: 400px;
+  overflow-y: auto;
+  border-top: 1px solid #eee;
+  padding-top: 1rem;
+}
+
+.episode-item {
+  margin-bottom: 1rem;
+  white-space: pre-wrap;
+  font-size: 0.6rem;
+  line-height: 1.4;
+}
+
 #video-popup {
   position: fixed;
   bottom: 1rem;

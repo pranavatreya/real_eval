@@ -489,16 +489,16 @@ def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> 
            A brief paragraph summarizing the general behavior, capabilities, and limitations of the policy.
 
         2. **Comparative Performance**  
-           How the policy performed in head-to-head comparisons. Include overall win/loss/tie statistics when possible, and cite specific task outcomes using session IDs wrapped in `<ref>...</ref>` tags. Highlight task types where the policy consistently outperforms or underperforms others.
+           How the policy performed in head-to-head comparisons. Include overall win/loss/tie statistics when possible, and cite specific task outcomes using session IDs wrapped in `<ref>...</ref>` tags. Highlight task types where the policy consistently outperforms or underperforms others. Then go deep into the details and analyze the performance of the policy in each episode in respect to the other policy using the head-to-head evaluation notes. Please have a lot of details in this section as it is the most important one.
 
         3. **Strengths**  
            Bullet-pointed list of notable strengths in manipulation behavior or general reliability. Focus on generalizable behaviors like smooth trajectories, robust grasping, or adaptability. Use concrete examples and session ID citations.
 
         4. **Weaknesses**  
-           Bullet-pointed list of recurring limitations or error patterns. Mention issues such as fine motor control, object confusion, or multi-step failure. Include session ID references with `<ref>` tags.
+           Bullet-pointed list of recurring limitations or error patterns. Mention issues such as fine motor control, object confusion, multi-step failure, etc. Include session ID references with `<ref>` tags.
 
         5. **Instruction Following**  
-           Analyze how well the policy understands and executes task instructions. Note sensitivity to language structure, ability to follow negated or relational commands, and issues with ambiguous phrasing. Cite session-specific evidence.
+           Analyze how well the policy understands and executes task instructions. Note sensitivity to language structure, ability to follow negated or relational commands, issues with ambiguous phrasing, abilty to handle typos, etc. Cite session-specific evidence.
 
         6. **Reasoning**  
            Evaluate the policy's ability to reason about both the **scene context** (e.g., spatial relationships, object visibility) and the **text instruction** (e.g., goal inference, conditional logic). Mention cases where reasoning appears strong or deficient. Use `<ref>` tags to support your analysis.
@@ -507,14 +507,14 @@ def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> 
            Describe the physical performance of the policy: grasping, placing, stacking, inserting, pouring, drawer use, and recovery from errors. Use examples to show when skills succeed or fail.
 
         8. **Robustness to Scene Variations**  
-           Assess the policy's performance under different lighting, clutter levels, object positions, and camera views. Note any sensitivities to occlusion or distractors.
+           Assess the policy's performance under different lighting, clutter levels, object positions, and camera views. Note any sensitivities to occlusion or distractors, etc.
 
         9. **Common Failure Modes**  
            List frequently observed failures (e.g., freezing mid-task, grabbing wrong item, failing passive commands). Provide short descriptions and supporting citations.
 
         **Instructions:**
-        - Use `<ref>session_id</ref>` to wrap all cited session IDs so they can be linked in the UI.
-        - Avoid generalizing from a single example—identify patterns across episodes.
+        - Use `<ref>session_id</ref>` to wrap all cited session IDs so they can be linked in the UI. Try to cite as many session IDs as possible to support your claims, but ensure they are relevant.
+        - Avoid generalizing from a single example; instead, focus on patterns across multiple episodes.
         - Keep the tone analytical and professional, emphasizing repeatable behaviors and insights.
 
         The episode reports are as follows:
@@ -543,11 +543,13 @@ Use the following format exactly:
 
 - Comparative Performance: <summary>
 
-- Skill Strengths: <summary>
+- Strengths: <summary>
 
-- Skill Weaknesses: <summary>
+- Weaknesses: <summary>
 
-- Reasoning and Instruction Following: <summary>
+- Instruction Following: <summary>
+
+- Reasoning: <summary>
 
 - Manipulation Skills: <summary>
 

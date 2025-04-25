@@ -16,11 +16,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     header.innerHTML = `<strong class="policy-name">${policy.policy_name}</strong><button class="toggle-button">+</button>`;
 
     const summary = document.createElement("pre");
-    summary.className = "policy-summary";
+    summary.className = "policy-summary summary-spaced";
     summary.textContent = policy.summary;
 
     const full = document.createElement("div");
     full.className = "policy-full hidden";
+
     const fullTitle = document.createElement("div");
     fullTitle.textContent = "Full Report";
     fullTitle.className = "full-title";
@@ -36,8 +37,32 @@ document.addEventListener("DOMContentLoaded", async () => {
       return `<span class='hover-ref' data-video='${videoPath}' data-prompt='${taskPrompt}'>🎥 ${shortSid}</span>`;
     });
 
+    const searchInput = document.createElement("input");
+    searchInput.type = "text";
+    searchInput.placeholder = "Filter by Session ID";
+    searchInput.className = "episode-search";
+
+    const episodeList = document.createElement("div");
+    episodeList.className = "episode-list";
+    policy.episode_reports.forEach(report => {
+      const item = document.createElement("pre");
+      item.className = "episode-item";
+      item.textContent = report;
+      episodeList.appendChild(item);
+    });
+
+    searchInput.addEventListener("input", () => {
+      const query = searchInput.value.trim();
+      Array.from(episodeList.children).forEach(child => {
+        const match = child.textContent.startsWith("Session ID: " + query);
+        child.style.display = match ? "block" : "none";
+      });
+    });
+
     full.appendChild(fullTitle);
     full.appendChild(fullContent);
+    full.appendChild(searchInput);
+    full.appendChild(episodeList);
 
     header.addEventListener("click", () => {
       const isHidden = full.classList.contains("hidden");
@@ -46,7 +71,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     div.appendChild(header);
-    summary.classList.add("summary-spaced");
     div.appendChild(summary);
     div.appendChild(full);
     container.appendChild(div);
