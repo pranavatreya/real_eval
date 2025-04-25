@@ -5,7 +5,7 @@ import pdb
 import textwrap
 import yaml
 
-from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask import Flask, abort, render_template, send_from_directory
 from tqdm import tqdm
 import cv2
 import fsspec
@@ -15,6 +15,11 @@ from database.connection import initialize_database_connection
 from llm.openai_client import OpenAIClient
 from logger import logger
 
+
+BASE_DIR = os.path.dirname(__file__)
+ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, '..'))
+OUTPUT_DIR = os.path.abspath(os.path.join(ROOT_DIR, 'output'))
+ANALYSIS_JSON_PATH = os.path.join(OUTPUT_DIR, 'policy_analysis.json')
 
 app = Flask(
     __name__,
@@ -396,30 +401,26 @@ def populate_policy_episodes(policies: dict[str, Policy], gcs_bucket: str) -> No
                 policies[policy_name].add_episode(episode)
 
 
-def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> list[PolicyPerformanceAnalysis]:
+def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> None:
     """
     Analyze the head-to-head evaluations for each policy.
     """
     logger.info("Analyzing head-to-head evaluations for each policy.")
-    output_json_path = os.path.join(analysis_path, "policy_analysis.json")
 
     results: list[PolicyPerformanceAnalysis] = []
 
     for policy_name, policy in policies.items():
         logger.info(f"Generating full analysis report for policy {policy_name}.")
 
-        output_text_path: str = os.path.join(output_path, f"{policy_name}.txt")
-        output_json_path: str = os.path.join(output_path, f"{policy_name}.json")
-
         # Gather all the head-to-head reports
         all_head_to_head_episodes: list[Episode] = policy.get_all_head_to_head_episodes()
         reports: list[str] = [episode.report for episode in all_head_to_head_episodes]
         session_id_to_video_path: dict[str, str] = {
-            episode.session.id: episode.cameras.sample_video()
+            str(episode.session.id): os.path.relpath(episode.cameras.sample_video(), OUTPUT_DIR)
             for episode in all_head_to_head_episodes
         }
         session_id_to_prompt: dict[str, str] = {
-            episode.session.id: episode.session.prompt
+            str(episode.session.id): episode.session.prompt
             for episode in all_head_to_head_episodes
         }
 
@@ -488,15 +489,25 @@ def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> 
         summary_prompt = textwrap.dedent(f"""\
 Given the following full evaluation report of a robot manipulation policy, generate a concise, high-quality summary that captures the main findings from sections 2 through 8.
 
-Each bullet should summarize the corresponding section in 1–2 clear, complete sentences. Use the following format exactly:
+Each bullet should summarize the corresponding section in a few sentence fragments, focusing on the most important points. Avoid excessive detail, ensure clarity and correctness.
+
+Use the following format exactly:
 
 - Comparative Performance: <summary>
+
 - Skill Strengths: <summary>
+
 - Skill Weaknesses: <summary>
+
 - Reasoning and Instruction Following: <summary>
+
 - Manipulation Skills: <summary>
+
 - Robustness to Scene Variations: <summary>
+
 - Common Failure Modes: <summary>
+
+Place a line break between each bullet point. Don't output anything before or after the bullet points.
 
 Here is the full report to summarize:
 
@@ -523,9 +534,32 @@ Here is the full report to summarize:
         results.append(result)
 
     # Save the full report and summary to a JSON file
-    with open(output_json_path, "w") as f:
+    with open(ANALYSIS_JSON_PATH, "w") as f:
         json.dump([asdict(result) for result in results], f, indent=4)
-    return results
+        logger.info(f"Saved analysis results to {ANALYSIS_JSON_PATH}.")
+
+
+@app.route('/')
+def index():
+    # pass the raw JSON into the template
+    return render_template('analysis.html')
+
+
+@app.route("/policy_analysis.json")
+def serve_policy_json():
+    return send_from_directory(OUTPUT_DIR, "policy_analysis.json")
+
+
+@app.route('/videos/<path:video_path>')
+def serve_video(video_path):
+    """
+    Serve videos stored under OUTPUT_DIR.
+    """
+    full_video_path = os.path.join(OUTPUT_DIR, video_path)
+    if not os.path.isfile(full_video_path):
+        abort(404)
+    # Serve from output folder
+    return send_from_directory(OUTPUT_DIR, video_path)
 
 
 if __name__ == "__main__":
@@ -533,8 +567,6 @@ if __name__ == "__main__":
     output_path: str = "output"
     cache_path: str = os.path.join(output_path, "cache")
     os.makedirs(cache_path, exist_ok=True)
-    analysis_path: str = os.path.join(output_path, "analysis")
-    os.makedirs(analysis_path, exist_ok=True)
 
     # To make LLM inference calls for analysis
     with open("configs/llm_inference.yaml", "r") as f:
@@ -558,9 +590,9 @@ if __name__ == "__main__":
 
     # ANALYSIS
     # 1. For each policy, analyze all its head-to-head comparisons and notes from all of its episodes
-    policy_analysis_results = analyze_head_to_head_evaluations_per_policy(valid_policies)
+    analyze_head_to_head_evaluations_per_policy(valid_policies)
     logger.info("Analysis completed.")
 
     # Start the Flask server
+    logger.info(f"Serving the analysis page.")
     app.run(host="0.0.0.0", port=8888, debug=False)
-
