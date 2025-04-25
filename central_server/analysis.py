@@ -17,15 +17,15 @@ from llm.openai_client import OpenAIClient
 from logger import logger
 
 """
-This script analyzes the performance of robot manipulation policies based on evaluation sessions.
-
+Analyzes the performance of robot manipulation policies based on evaluation sessions.
 It downloads camera recordings, processes them, and generates reports using LLMs.
+Finally, it serves the analysis results through a web interface.
 
 Usage:
     python analysis.py
 
     python analysis.py --skip-refresh
-    --skip-refresh: Skip the regeneration of the analysis JSON file and use the cached version.
+    --skip-refresh: Skips recomputing the analysis and use the cached version of the analysis JSON on disk.
 """
 
 
