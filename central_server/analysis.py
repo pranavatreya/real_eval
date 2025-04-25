@@ -1,16 +1,27 @@
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+import json
 import os
 import pdb
 import textwrap
 import yaml
 
+from flask import Flask, request, jsonify, render_template, send_from_directory
 from tqdm import tqdm
+import cv2
 import fsspec
 
 from database.schema import PolicyModel, SessionModel
 from database.connection import initialize_database_connection
 from llm.openai_client import OpenAIClient
 from logger import logger
+
+
+app = Flask(
+    __name__,
+    template_folder="frontend/templates",
+    static_folder="frontend/static",
+    static_url_path="/static",
+)
 
 
 @dataclass
@@ -31,43 +42,78 @@ class Session:
 @dataclass
 class Cameras:
     left_gcs_path: str | None = None
-    """Path to the left camera video on GCS."""
-
     left_local_path: str | None = None
-    """Path to the left camera video on local storage."""
+    left_first_frame_local_path: str | None = None
 
     right_gcs_path: str | None = None
-    """Path to the right camera video on GCS."""
-
     right_local_path: str | None = None
-    """Path to the right camera video on local storage."""
+    right_first_frame_local_path: str | None = None
 
     wrist_gcs_path: str | None = None
-    """Path to the wrist camera video on GCS."""
-
     wrist_local_path: str | None = None
-    """Path to the wrist camera video on local storage."""
+    wrist_first_frame_local_path: str | None = None
+
+    @staticmethod
+    def extract_first_frame(video_path: str) -> str | None:
+        """
+        Extracts and saves the first frame of a video. Returns the image path.
+        Skips extraction if the image already exists.
+        """
+        if not os.path.exists(video_path):
+            logger.warning(f"Video file not found: {video_path}")
+            return None
+
+        base, ext = os.path.splitext(video_path)
+        image_path = f"{base}_first_frame.jpg"
+
+        if os.path.exists(image_path):
+            return image_path
+
+        cap = cv2.VideoCapture(video_path)
+        success, frame = cap.read()
+        cap.release()
+
+        assert success, f"Failed to read the first frame from {video_path}"
+        cv2.imwrite(image_path, frame)
+        return image_path
 
     def download(self, gcs_bucket: str) -> None:
         """
-        Download the camera videos from GCS to local storage.
+        Download camera videos from GCS and extract first frame image.
         """
         if self.left_gcs_path:
-            local_path = os.path.join(output_path, self.left_gcs_path)
-            download_from_gcs(f"gs://{gcs_bucket}/{self.left_gcs_path}", local_path)
+            self.left_local_path = os.path.join(output_path, self.left_gcs_path)
+            download_from_gcs(f"gs://{gcs_bucket}/{self.left_gcs_path}", self.left_local_path)
+            self.left_first_frame_local_path = self.extract_first_frame(self.left_local_path)
+
         if self.right_gcs_path:
-            local_path = os.path.join(output_path, self.right_gcs_path)
-            download_from_gcs(f"gs://{gcs_bucket}/{self.right_gcs_path}", local_path)
+            self.right_local_path = os.path.join(output_path, self.right_gcs_path)
+            download_from_gcs(f"gs://{gcs_bucket}/{self.right_gcs_path}", self.right_local_path)
+            self.right_first_frame_local_path = self.extract_first_frame(self.right_local_path)
+
         if self.wrist_gcs_path:
-            local_path = os.path.join(output_path, self.wrist_gcs_path)
-            download_from_gcs(f"gs://{gcs_bucket}/{self.wrist_gcs_path}", local_path)
+            self.wrist_local_path = os.path.join(output_path, self.wrist_gcs_path)
+            download_from_gcs(f"gs://{gcs_bucket}/{self.wrist_gcs_path}", self.wrist_local_path)
+            self.wrist_first_frame_local_path = self.extract_first_frame(self.wrist_local_path)
+
+    def sample_video(self) -> str:
+        """
+        Get a video from the camera prioritizing the third-person cameras. Return the local path.
+        """
+        sample_video_path: str | None = None
+        if self.left_local_path:
+            sample_video_path = self.left_local_path
+        elif self.right_local_path:
+            sample_video_path = self.right_local_path
+        elif self.wrist_local_path:
+            sample_video_path = self.wrist_local_path
+
+        assert sample_video_path, "No video available for this episode."
+        return sample_video_path
 
 
 @dataclass
 class HeadToHead:
-    session: Session
-    """The session this head-to-head evaluation belongs to."""
-
     perspective_policy: str
     """In the perspective of this policy."""
 
@@ -83,13 +129,12 @@ class HeadToHead:
     ab_notes: str
     """Notes from the head-to-head evaluation."""
 
-    def report(self) -> str:
+    @property
+    def full_notes(self) -> str:
         """
-        Generate a report that summarizes the head-to-head evaluation in perspective of `perspective_policy` policy`.
+        Generate the full notes of the head-to-head evaluation in perspective of `perspective_policy` policy`.
         """
         return textwrap.dedent(f"""
-        Session #{self.session.id}
-        Task: {self.session.prompt}
         Policy A or B: {self.perspective_policy} was Policy {"A" if self.was_policy_a else "B"}
         Result: {self.perspective_policy} {"tied" if self.tied else "won" if self.won else "lost"}
         Evaluation notes: {self.ab_notes}
@@ -111,8 +156,78 @@ class Episode:
     cameras: Cameras
     """Camera data for the episode."""
 
-    head_to_head: HeadToHead | None
+    head_to_head: HeadToHead | None = None
     """Head-to-head evaluation data for the episode (if exists)."""
+
+    annotations: str | None = None
+    """Annotations from a VLM using the first frames of the cameras and the task at hand."""
+
+    def annotate(self) -> None:
+        """
+        Annotate the episode using first frames from available cameras.
+        """
+        if not self.head_to_head:
+            # Don't annotate the beginning of the episode if there is no head-to-head evaluation
+            return
+
+        image_paths = [
+            self.cameras.left_first_frame_local_path,
+            self.cameras.right_first_frame_local_path,
+            self.cameras.wrist_first_frame_local_path,
+        ]
+        image_paths = [p for p in image_paths if p and os.path.exists(p)]
+
+        if not image_paths:
+            logger.warning(f"No valid first-frame images found for session {self.session.id}")
+            return
+
+        prompt = (
+            f"You're analyzing the first-frame images of videos recorded during a robot manipulation evaluation, where the robot is commanded to carry out a task.\n\n"
+            f"Task description: {self.session.prompt.strip()}\n\n"
+            f"One of the images is a top-down view of the scene taken from the wrist camera of the robot arm, and the other one or two images are third-person views of the scene taken from the left and right cameras.\n\n"
+            f"Please describe the following aspects based on the provided images:\n\n"
+            f"Camera angle: Describe the provided first frames and whether they provide a clear view of the objects and environment necessary for executing the task.\n"
+            f"Lighting: Evaluate whether the lighting is sufficient. Note if any shadows, glares, or dim areas make the task harder to observe or complete.\n"
+            f"Clarity of task: Based on the task description, is what the robot is expected to do clear? Mention any ambiguity. Note spelling/grammar mistakes/lowercase vs capitalized letters.\n"
+            f"Scene: Describe the overall scene setup. Are there distractors, unnecessary clutter, or many objects that may interfere with completing the task? Describe the individual objects (e.g., orientation, hidden, etc.) and if they cause difficulty in carrying out the task.\n"
+            f"Difficulty: Estimate how difficult the task appears, considering the setup, task clarity, overall scene, object descriptions and placements, and visibility. Explain why it seems easy or hard (e.g., the handle on the drawer is tiny; the task for this scene requires the ability to execute very precise/dextrous manipulation, etc.).\n\n"
+            f"Output your response in the following format only:\n\n"
+            f"Camera angle: <your analysis>\n"
+            f"Lighting: <your analysis>\n"
+            f"Clarity of task: <your analysis>\n"
+            f"Scene: <your analysis>\n"
+            f"Difficulty: <your analysis>\n\n"
+            f"Explain your answers thoroughly while strictly following the format above. Do not incorporate markdown or any other formatting."
+        )
+
+        try:
+            # We use GPT-4.5 since it is a frontier model for image understanding
+            # https://crfm.stanford.edu/helm/vhelm/v2.1.2/#/leaderboard/visual_perception
+            response, cached = openai_client.run_image_inference(
+                model="gpt-4.5-preview-2025-02-27",
+                image_paths=image_paths,
+                text=prompt,
+                temperature=0,
+                max_tokens=2048,
+            )
+            self.annotations = response["choices"][0]["message"]["content"]
+        except Exception as e:
+            logger.warning(f"Annotation failed for session {self.session.id}: {e}")
+
+    @property
+    def report(self) -> str:
+        """
+        Generate a report that summarizes the episode with the head-to-head evaluation notes.
+        """
+        assert self.head_to_head, "Episode has no head-to-head evaluation, so nothing to report."
+        return textwrap.dedent(f"""Session ID: {self.session.id}
+Task: {self.session.prompt}
+
+Scene Setup and Task Analysis
+{self.annotations}
+
+Head-to-Head Comparison
+{self.head_to_head.full_notes.strip()}""")
 
 
 @dataclass
@@ -129,11 +244,35 @@ class Policy:
         """
         self.episodes.append(episode)
 
-    def get_all_head_to_head(self) -> list[HeadToHead]:
+    def get_all_head_to_head_episodes(self) -> list[Episode]:
         """
-        Get all head-to-head evaluations for this policy.
+        Get all episodes that have head-to-head evaluations.
         """
-        return [episode.head_to_head for episode in self.episodes if episode.head_to_head]
+        return [episode for episode in self.episodes if episode.head_to_head]
+
+
+@dataclass
+class PolicyPerformanceAnalysis:
+    policy_name: str
+    """Name of the policy."""
+
+    number_of_head_to_head_evaluations: int
+    """Number of head-to-head evaluations for this policy."""
+
+    full_report: str
+    """Full report of the head-to-head evaluations for this policy."""
+
+    summary: str
+    """Summary of the full report."""
+
+    episode_reports: list[str]
+    """List of episode reports for this policy."""
+
+    session_id_to_video_path: dict[str, str]
+    """Mapping of session IDs to sample video path for this policy."""
+
+    session_id_to_prompt: dict[str, str]
+    """Mapping of session IDs to prompt for this policy."""
 
 
 def get_all_valid_policies() -> dict[str, Policy]:
@@ -215,7 +354,6 @@ def populate_policy_episodes(policies: dict[str, Policy], gcs_bucket: str) -> No
             if policy_name == policy_a_name:
                 # If the policy is A, check if it won
                 head_to_head = HeadToHead(
-                    session=session,
                     perspective_policy=policy_name,
                     was_policy_a=True,
                     won="PREFERENCE=A" in raw_evaluation_notes,
@@ -225,7 +363,6 @@ def populate_policy_episodes(policies: dict[str, Policy], gcs_bucket: str) -> No
             elif policy_name == policy_b_name:
                 # If the policy is B, check if it won
                 head_to_head = HeadToHead(
-                    session=session,
                     perspective_policy=policy_name,
                     was_policy_a=False,
                     won="PREFERENCE=B" in raw_evaluation_notes,
@@ -251,60 +388,144 @@ def populate_policy_episodes(policies: dict[str, Policy], gcs_bucket: str) -> No
                 head_to_head=head_to_head,
             )
 
+            # Annotate each episode using a VLM
+            episode.annotate()
+
             # Add the episode to the policy
             if policy_name in policies:
                 policies[policy_name].add_episode(episode)
 
 
-def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> None:
+def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> list[PolicyPerformanceAnalysis]:
     """
     Analyze the head-to-head evaluations for each policy.
     """
     logger.info("Analyzing head-to-head evaluations for each policy.")
-    output_path = os.path.join(analysis_path, "head_to_head")
-    os.makedirs(output_path, exist_ok=True)
+    output_json_path = os.path.join(analysis_path, "policy_analysis.json")
+
+    results: list[PolicyPerformanceAnalysis] = []
 
     for policy_name, policy in policies.items():
+        logger.info(f"Generating full analysis report for policy {policy_name}.")
+
         output_text_path: str = os.path.join(output_path, f"{policy_name}.txt")
         output_json_path: str = os.path.join(output_path, f"{policy_name}.json")
 
         # Gather all the head-to-head reports
-        all_head_to_head: list[HeadToHead] = policy.get_all_head_to_head()
-        reports: list[str] = [head_to_head.report() for head_to_head in all_head_to_head]
+        all_head_to_head_episodes: list[Episode] = policy.get_all_head_to_head_episodes()
+        reports: list[str] = [episode.report for episode in all_head_to_head_episodes]
+        session_id_to_video_path: dict[str, str] = {
+            episode.session.id: episode.cameras.sample_video()
+            for episode in all_head_to_head_episodes
+        }
+        session_id_to_prompt: dict[str, str] = {
+            episode.session.id: episode.session.prompt
+            for episode in all_head_to_head_episodes
+        }
 
         # Construct the prompt to get the summary
-        prompt = textwrap.dedent(f"""\
-We are evaluating a policy named {policy_name} deployed on a robot arm to perform various tasks.
-We have conducted head-to-head evaluations of this policy against other policies.
-Given all the head-to-head evaluation reports for the policy {policy_name} against other policies, summarize the results.
-Discuss the strengths and weaknesses of the policy in both the tasks it can perform and the tasks it cannot perform when compared to other policies.
-If the report contains information about the policy's ability to reason, adhere to instructions, planning, etc., please include that information.
-Try not to make general claims based on single instances, but rather focus on the overall performance of the policy across all head-to-head evaluations.
-Cite specific session numbers and tasks when making claims about the policy's performance.
-
-The head-to-head reports are as follows:
-
-{'\n'.join(reports)}
-""")
-
-        # Run inference
-        response, _ = openai_client.run_inference(
-            model="gpt-4o-2024-11-20",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-            max_tokens=2048,
+        episode_text = '\n\n'.join(
+            f"========== Episode Report #{i + 1} ==========\n{report}" for i, report in enumerate(reports)
         )
-        summary: str = response["choices"][0]["message"]["content"]
 
-        with open(output_text_path, "w") as f:
-            f.write(f"Policy: {policy_name}\n")
-            f.write(f"Number of episodes: {len(policy.episodes)}\n")
-            f.write(f"Number of head-to-head evaluations: {len(all_head_to_head)}\n\n")
-            f.write("Summary:\n")
-            f.write(summary)
-            f.write("\n\n")
-            f.write("Head-to-head reports:\n")
-            f.write("\n".join(reports))
+        prompt = textwrap.dedent(f"""\
+        We are evaluating a policy named {policy_name} deployed on a robot arm to perform various manipulation tasks.
+        This policy was compared head-to-head against other policies across multiple episodes. Each episode includes:
+        - A session ID
+        - A task description
+        - A scene and task analysis
+        - Head-to-head evaluation results
+
+        Using the episode data provided, generate a **structured and comprehensive summary report** in the format below:
+
+        1. **Policy Overview**  
+           A brief paragraph summarizing the general behavior, capabilities, and limitations of the policy.
+
+        2. **Comparative Performance**  
+           How the policy performed in head-to-head comparisons. Include overall win/loss/tie statistics when possible, and cite specific task outcomes using session IDs wrapped in `<ref>...</ref>` tags. Highlight task types where the policy consistently outperforms or underperforms others.
+
+        3. **Strengths**  
+           Bullet-pointed list of notable strengths in manipulation behavior or general reliability. Focus on generalizable behaviors like smooth trajectories, robust grasping, or adaptability. Use concrete examples and session ID citations.
+
+        4. **Weaknesses**  
+           Bullet-pointed list of recurring limitations or error patterns. Mention issues such as fine motor control, object confusion, or multi-step failure. Include session ID references with `<ref>` tags.
+
+        5. **Instruction Following**  
+           Analyze how well the policy understands and executes task instructions. Note sensitivity to language structure, ability to follow negated or relational commands, and issues with ambiguous phrasing. Cite session-specific evidence.
+
+        6. **Reasoning**  
+           Evaluate the policy's ability to reason about both the **scene context** (e.g., spatial relationships, object visibility) and the **text instruction** (e.g., goal inference, conditional logic). Mention cases where reasoning appears strong or deficient. Use `<ref>` tags to support your analysis.
+
+        7. **Manipulation Skills**  
+           Describe the physical performance of the policy: grasping, placing, stacking, inserting, pouring, drawer use, and recovery from errors. Use examples to show when skills succeed or fail.
+
+        8. **Robustness to Scene Variations**  
+           Assess the policy's performance under different lighting, clutter levels, object positions, and camera views. Note any sensitivities to occlusion or distractors.
+
+        9. **Common Failure Modes**  
+           List frequently observed failures (e.g., freezing mid-task, grabbing wrong item, failing passive commands). Provide short descriptions and supporting citations.
+
+        **Instructions:**
+        - Use `<ref>session_id</ref>` to wrap all cited session IDs so they can be linked in the UI.
+        - Avoid generalizing from a single example—identify patterns across episodes.
+        - Keep the tone analytical and professional, emphasizing repeatable behaviors and insights.
+
+        The episode reports are as follows:
+
+        {episode_text}
+        """)
+
+        # Generate full report
+        # Run inference Using a strong reasoning model to generate this analysis report.
+        response, _ = openai_client.run_inference(
+            model="o3-2025-04-16",
+            messages=[{"role": "user", "content": prompt}],
+            reasoning_effort="high",
+            max_completion_tokens=100_000,
+        )
+        full_report: str = response["choices"][0]["message"]["content"]
+
+        summary_prompt = textwrap.dedent(f"""\
+Given the following full evaluation report of a robot manipulation policy, generate a concise, high-quality summary that captures the main findings from sections 2 through 8.
+
+Each bullet should summarize the corresponding section in 1–2 clear, complete sentences. Use the following format exactly:
+
+- Comparative Performance: <summary>
+- Skill Strengths: <summary>
+- Skill Weaknesses: <summary>
+- Reasoning and Instruction Following: <summary>
+- Manipulation Skills: <summary>
+- Robustness to Scene Variations: <summary>
+- Common Failure Modes: <summary>
+
+Here is the full report to summarize:
+
+{full_report}""")
+
+        # Summarize the full report
+        summary_response, _ = openai_client.run_inference(
+            model="o3-2025-04-16",
+            messages=[{"role": "user", "content": summary_prompt}],
+            reasoning_effort="high",
+            max_completion_tokens=30_000,
+        )
+        summary: str = summary_response["choices"][0]["message"]["content"]
+
+        result = PolicyPerformanceAnalysis(
+            policy_name=policy_name,
+            number_of_head_to_head_evaluations=len(all_head_to_head_episodes),
+            full_report=full_report,
+            summary=summary,
+            episode_reports=reports,
+            session_id_to_video_path=session_id_to_video_path,
+            session_id_to_prompt=session_id_to_prompt,
+        )
+        results.append(result)
+
+    # Save the full report and summary to a JSON file
+    with open(output_json_path, "w") as f:
+        json.dump([asdict(result) for result in results], f, indent=4)
+    return results
 
 
 if __name__ == "__main__":
@@ -336,7 +557,10 @@ if __name__ == "__main__":
     populate_policy_episodes(valid_policies, gcs_bucket_name)
 
     # ANALYSIS
-    # 1. For each policy, analyze all its head-to-head comparisons and notes from those sessions.
-    analyze_head_to_head_evaluations_per_policy(valid_policies)
-
+    # 1. For each policy, analyze all its head-to-head comparisons and notes from all of its episodes
+    policy_analysis_results = analyze_head_to_head_evaluations_per_policy(valid_policies)
     logger.info("Analysis completed.")
+
+    # Start the Flask server
+    app.run(host="0.0.0.0", port=8888, debug=False)
+
