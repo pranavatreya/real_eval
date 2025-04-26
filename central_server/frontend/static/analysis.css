@@ -109,9 +109,16 @@ h1 {
 }
 
 #popup-prompt {
-  font-size: 0.75rem;
+  font-size: 0.9rem;
   margin-bottom: 0.5rem;
   color: #555;
+}
+
+#popup-speed {
+  font-size: 0.6rem;
+  color: #888;
+  margin-bottom: 0.2rem;
+  margin-left: 0.2rem;
 }
 
 .hidden {

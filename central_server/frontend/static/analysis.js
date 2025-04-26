@@ -83,8 +83,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       if (videoPath) {
         video.src = `/videos/${videoPath}`;
-        prompt.textContent = `Prompt: ${taskPrompt}`;
+        prompt.textContent = `${taskPrompt}`;
         popup.classList.remove("hidden");
+
+        // Play the video at 4x speed
+        video.playbackRate = 4.0;   // <--- Set 4x speed here
         video.play();
       }
     }
