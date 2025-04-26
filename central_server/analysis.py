@@ -489,7 +489,7 @@ def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> 
            A brief paragraph summarizing the general behavior, capabilities, and limitations of the policy.
 
         2. **Comparative Performance**  
-           How the policy performed in head-to-head comparisons. Include overall win/loss/tie statistics when possible, and cite specific task outcomes using session IDs wrapped in `<ref>...</ref>` tags. Highlight task types where the policy consistently outperforms or underperforms others. Then go deep into the details and analyze the performance of the policy in each episode in respect to the other policy using the head-to-head evaluation notes. Please have a lot of details in this section as it is the most important one.
+           How the policy performed in head-to-head comparisons against other policies. Include overall win/loss/tie statistics when possible, and cite specific task outcomes using session IDs wrapped in `<ref>...</ref>` tags. Highlight task types where the policy consistently outperforms or underperforms others. Then go deep into the details and analyze the performance of the policy in each episode in respect to the other policy using the head-to-head evaluation notes. Summarize and list 5-10 bullet points with key insights. Make sure in this section every claim about the policy is in respect to other competing policies. Do not discuss the policy in isolation.
 
         3. **Strengths**  
            Bullet-pointed list of notable strengths in manipulation behavior or general reliability. Focus on generalizable behaviors like smooth trajectories, robust grasping, or adaptability. Use concrete examples and session ID citations.
