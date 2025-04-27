@@ -32,7 +32,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       const taskPrompt = policy.session_id_to_prompt[sid];
       const shortSid = sid.split("-")[0];
       if (!videoPath) {
-        return `<span class='hover-ref' data-video='' data-prompt='${taskPrompt || ""}'>🎥 ${shortSid}</span>`;
+        console.warn("[BUILD] No video path for session ID:", sid, "in policy:", policy.policy_name);
+        return `<span class='hover-ref missing-video' data-video='' data-prompt='${taskPrompt || ""}'>🎥 ${shortSid}</span>`;
       }
       return `<span class='hover-ref' data-video='${videoPath}' data-prompt='${taskPrompt}'>🎥 ${shortSid}</span>`;
     });
@@ -76,22 +77,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     container.appendChild(div);
   });
 
-  document.body.addEventListener("mouseover", e => {
-    if (e.target.classList.contains("hover-ref")) {
-      const videoPath = e.target.dataset.video;
-      const taskPrompt = e.target.dataset.prompt;
+document.body.addEventListener("mouseover", e => {
+  if (e.target.classList.contains("hover-ref")) {
+    const videoPath = e.target.dataset.video;
+    const taskPrompt = e.target.dataset.prompt;
+    console.log("Hovered over a reference. Video path:", videoPath, "Prompt:", taskPrompt);
 
-      if (videoPath) {
-        video.src = `/videos/${videoPath}`;
-        prompt.textContent = `${taskPrompt}`;
+    if (videoPath) {
+      video.pause();
+      video.src = `/videos/${videoPath}`;
+      video.load();  // Force reload the new video
+      video.playbackRate = 4.0;   // Set 4x speed before playing
+
+      video.addEventListener('loadeddata', () => {
         popup.classList.remove("hidden");
-
-        // Play the video at 4x speed
-        video.playbackRate = 4.0;   // <--- Set 4x speed here
         video.play();
-      }
+      }, { once: true });
+
+      prompt.textContent = `${taskPrompt}`;
     }
-  });
+    else {
+      console.warn("No video path found, not loading video.");
+    }
+  }
+});
 
   document.body.addEventListener("mouseout", e => {
     if (e.target.classList.contains("hover-ref")) {

@@ -474,54 +474,54 @@ def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> 
             for i, report in enumerate(reports)
         )
 
-        prompt = textwrap.dedent(
-            f"""\
-        We are evaluating a policy named {policy_name} deployed on a robot arm to perform various manipulation tasks.
-        This policy was compared head-to-head against other policies across multiple episodes. Each episode includes:
-        - A session ID
-        - A task description
-        - A scene and task analysis
-        - Head-to-head evaluation results
+        prompt = textwrap.dedent(f"""\
+We are evaluating a policy named {policy_name} deployed on a robot arm to perform various manipulation tasks.
+This policy was compared head-to-head against other policies across multiple episodes. Each episode includes:
+- A session ID
+- A task description
+- A scene and task analysis
+- Head-to-head evaluation results
 
-        Using the episode data provided, generate a **structured and comprehensive summary report** in the format below:
+Using the episode data provided, generate a **structured and comprehensive summary report** in the format below:
 
-        1. **Policy Overview**  
-           A brief paragraph summarizing the general behavior, capabilities, and limitations of the policy.
+1. **Policy Overview**  
+A brief paragraph summarizing the general behavior, capabilities, and limitations of the policy.
 
-        2. **Comparative Performance**  
-           How the policy performed in head-to-head comparisons against other policies. Include overall win/loss/tie statistics when possible, and cite specific task outcomes using session IDs wrapped in `<ref>...</ref>` tags. Highlight task types where the policy consistently outperforms or underperforms others. Then go deep into the details and analyze the performance of the policy in each episode in respect to the other policy using the head-to-head evaluation notes. Summarize and list 5-10 bullet points with key insights. Make sure in this section every claim about the policy is in respect to other competing policies. Do not discuss the policy in isolation.
+2. **Comparative Performance**  
+How the policy performed in head-to-head comparisons against other policies. Include overall win/loss/tie statistics when possible, and cite specific task outcomes using session IDs wrapped in `<ref>...</ref>` tags. Highlight task types where the policy consistently outperforms or underperforms others. Then go deep into the details and analyze the performance of the policy in each episode in respect to the other policy using the head-to-head evaluation notes. Summarize and list 5-10 bullet points with key insights. Make sure in this section every claim about the policy is in respect to other competing policies. Do not discuss the policy in isolation.
 
-        3. **Strengths**  
-           Bullet-pointed list of notable strengths in manipulation behavior or general reliability. Focus on generalizable behaviors like smooth trajectories, robust grasping, or adaptability. Use concrete examples and session ID citations.
+3. **Strengths**  
+Bullet-pointed list of notable strengths in manipulation behavior or general reliability. Focus on generalizable behaviors like smooth trajectories, robust grasping, or adaptability. Use concrete examples and session ID citations.
 
-        4. **Weaknesses**  
-           Bullet-pointed list of recurring limitations or error patterns. Mention issues such as fine motor control, object confusion, multi-step failure, etc. Include session ID references with `<ref>` tags.
+4. **Weaknesses**  
+Bullet-pointed list of recurring limitations or error patterns. Mention issues such as fine motor control, object confusion, multi-step failure, etc. Include session ID references with `<ref>` tags.
 
-        5. **Instruction Following**  
-           Analyze how well the policy understands and executes task instructions. Note sensitivity to language structure, ability to follow negated or relational commands, issues with ambiguous phrasing, abilty to handle typos, etc. Cite session-specific evidence.
+5. **Instruction Following**  
+Analyze how well the policy understands and executes task instructions. Note sensitivity to language structure, ability to follow negated or relational commands, issues with ambiguous phrasing, ability to handle typos, etc. Cite session-specific evidence.
 
-        6. **Reasoning**  
-           Evaluate the policy's ability to reason about both the **scene context** (e.g., spatial relationships, object visibility) and the **text instruction** (e.g., goal inference, conditional logic). Mention cases where reasoning appears strong or deficient. Use `<ref>` tags to support your analysis.
+6. **Reasoning**  
+Evaluate the policy's ability to reason about both the **scene context** (e.g., spatial relationships, object visibility) and the **text instruction** (e.g., goal inference, conditional logic). Mention cases where reasoning appears strong or deficient. Use `<ref>` tags to support your analysis.
 
-        7. **Manipulation Skills**  
-           Describe the physical performance of the policy: grasping, placing, stacking, inserting, pouring, drawer use, and recovery from errors. Use examples to show when skills succeed or fail.
+7. **Manipulation Skills**  
+Describe the physical performance of the policy: grasping, placing, stacking, inserting, pouring, drawer use, and recovery from errors. Use examples to show when skills succeed or fail.
 
-        8. **Robustness to Scene Variations**  
-           Assess the policy's performance under different lighting, clutter levels, object positions, and camera views. Note any sensitivities to occlusion or distractors, etc.
+8. **Robustness to Scene Variations**  
+Assess the policy's performance under different lighting, clutter levels, object positions, and camera views. Note any sensitivities to occlusion or distractors, etc.
 
-        9. **Common Failure Modes**  
-           List frequently observed failures (e.g., freezing mid-task, grabbing wrong item, failing passive commands). Provide short descriptions and supporting citations.
+9. **Common Failure Modes**  
+List frequently observed failures (e.g., freezing mid-task, grabbing wrong item, failing passive commands). Provide short descriptions and supporting citations.
 
-        **Instructions:**
-        - Use `<ref>session_id</ref>` to wrap all cited session IDs so they can be linked in the UI. Try to cite as many session IDs as possible to support your claims, but ensure they are relevant.
-        - Avoid generalizing from a single example; instead, focus on patterns across multiple episodes.
-        - Keep the tone analytical and professional, emphasizing repeatable behaviors and insights.
+**Instructions:**
+- When referring to a session, always cite the full session ID (UUID format, e.g., 16e5bbda-57c1-4e58-a24a-b39ee8142d41) exactly as provided. Do not shorten, truncate or modify it in any way.
+- Always wrap session IDs inside <ref>...</ref> tags. Example: <ref>16e5bbda-57c1-4e58-a24a-b39ee8142d41</ref>
+- Try to cite as many session IDs as possible to support your claims, but only if they are relevant to the point you're making.
+- Avoid generalizing from a single episode unless there is clear evidence of a pattern.
+- Keep the tone analytical and professional, emphasizing repeatable behaviors and insights.
+- Do not invent session IDs. Only use session IDs present in the provided episode reports.
 
-        The episode reports are as follows:
+The episode reports are as follows:
 
-        {episode_text}
-        """
-        )
+{episode_text}""")
 
         # Generate full report
         # Run inference Using a strong reasoning model to generate this analysis report.
