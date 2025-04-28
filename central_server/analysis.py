@@ -639,9 +639,8 @@ if __name__ == "__main__":
     # Connect to the database
     # TODO: use the localhost url
     database_url = "postgresql://centralserver:m3lxcf830x20g4@localhost:5432/real_eval"
-    database_url = (
-        "postgresql://centralserver:m3lxcf830x20g4@34.55.101.123:5432/real_eval"
-    )
+    # database_url = "postgresql://centralserver:m3lxcf830x20g4@34.55.101.123:5432/real_eval"
+
     SessionLocal = initialize_database_connection(database_url)
     logger.info(f"Database connection to {database_url} initialized.")
 
