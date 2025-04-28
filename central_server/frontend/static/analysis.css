@@ -1,0 +1,126 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 2rem;
+  background: #f9f9f9;
+  color: #333;
+}
+
+.container {
+  max-width: 960px;
+  margin: auto;
+}
+
+h1 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.policy {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.policy-name {
+  font-size: 1.1rem;
+}
+
+.policy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.summary-spaced {
+  margin-bottom: 1.5rem;
+}
+
+.full-title {
+  font-weight: bold;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.policy-summary {
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  white-space: pre-wrap;
+}
+
+.policy-full {
+  font-size: 0.85rem;
+  margin-top: 1rem;
+  white-space: pre-wrap;
+}
+
+.hover-ref {
+  color: #1a73e8;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.episode-search {
+  margin: 1rem 0;
+  padding: 0.5rem;
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.episode-list {
+  max-height: 400px;
+  overflow-y: auto;
+  border-top: 1px solid #eee;
+  padding-top: 1rem;
+}
+
+.episode-item {
+  margin-bottom: 1rem;
+  white-space: pre-wrap;
+  font-size: 0.6rem;
+  line-height: 1.4;
+}
+
+#video-popup {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  max-width: 320px;
+  z-index: 9999;
+}
+
+#video-popup.hidden {
+  display: none;
+}
+
+#popup-video {
+  width: 100%;
+  border-radius: 8px;
+}
+
+#popup-prompt {
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  color: #555;
+}
+
+#popup-speed {
+  font-size: 0.6rem;
+  color: #888;
+  margin-bottom: 0.2rem;
+  margin-left: 0.2rem;
+}
+
+.hidden {
+  display: none !important;
+}

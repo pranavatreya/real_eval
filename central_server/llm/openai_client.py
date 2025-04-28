@@ -1,4 +1,5 @@
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, List, Tuple
+from base64 import b64encode
 import json
 import os
 
@@ -38,3 +39,22 @@ class OpenAIClient:
 
         self._cache[key] = response
         return response, False
+
+    def run_image_inference(
+        self, model: str, image_paths: List[str], text: str, **kwargs
+    ) -> Tuple[Dict[str, Any], bool]:
+        """Make a multimodal request with multiple images and a text prompt."""
+        content_blocks = [{"type": "text", "text": text}]
+
+        for path in image_paths:
+            with open(path, "rb") as f:
+                encoded_image = b64encode(f.read()).decode("utf-8")
+
+            image_block = {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{encoded_image}"}
+            }
+            content_blocks.append(image_block)
+
+        messages = [{"role": "user", "content": content_blocks}]
+        return self.run_inference(model=model, messages=messages, **kwargs)
