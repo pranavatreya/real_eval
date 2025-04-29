@@ -1,0 +1,7 @@
+Dump generated at 2025-04-29T23-15-23 UTC
+Source DB: postgresql://centralserver:m3lxcf830x20g4@localhost:5432/real_eval
+Formats  : csv
+
+policies            7 rows
+sessions         1017 rows
+episodes         5198 rows
