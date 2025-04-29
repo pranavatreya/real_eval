@@ -149,11 +149,17 @@ class Cameras:
         Get the first frame paths from all available cameras.
         """
         first_frame_paths = []
-        if self.left_first_frame_local_path and os.path.exists(self.left_first_frame_local_path):
+        if self.left_first_frame_local_path and os.path.exists(
+            self.left_first_frame_local_path
+        ):
             first_frame_paths.append(self.left_first_frame_local_path)
-        if self.right_first_frame_local_path and os.path.exists(self.right_first_frame_local_path):
+        if self.right_first_frame_local_path and os.path.exists(
+            self.right_first_frame_local_path
+        ):
             first_frame_paths.append(self.right_first_frame_local_path)
-        if self.wrist_first_frame_local_path and os.path.exists(self.wrist_first_frame_local_path):
+        if self.wrist_first_frame_local_path and os.path.exists(
+            self.wrist_first_frame_local_path
+        ):
             first_frame_paths.append(self.wrist_first_frame_local_path)
         return first_frame_paths
 
@@ -266,7 +272,9 @@ class Episode:
 
         image_paths = self.cameras.get_first_frame_paths()
         if not image_paths:
-            logger.warning(f"No valid first-frame images found for session {self.session.id}")
+            logger.warning(
+                f"No valid first-frame images found for session {self.session.id}"
+            )
             return
 
         examples_text = (
@@ -349,26 +357,19 @@ class Episode:
             f"Task description:\n{self.session.prompt.strip()}\n\n"
             f"{examples_text}\n"
             f"Please infer the following metadata fields based on the task description and provided images:\n\n"
-
             f"- Task category: Choose the category that best describes the manipulation skill required, based on the examples above.\n\n"
-
             f"- Whether the camera view is clear: Determine if the images provide a full, unobstructed view of the objects and workspace necessary for the task. "
             f"Mark as clear if the view enables the robot to see all relevant elements; otherwise, mark as unclear if important parts are hidden, cropped, or poorly framed.\n\n"
-
             f"- Whether the lighting is good: Assess whether the lighting in the scene makes objects and their placement easy to perceive. "
             f"Good lighting means the scene is evenly lit without strong glare, harsh shadows, or dim areas that could affect task execution.\n\n"
-
             f"- Whether the task description is clear: Evaluate the clarity of the task text alone. A clear description is grammatically correct and unambiguous. "
             f"Mark it unclear if there are major spelling/grammar issues, missing context, or vague/inconsistent instructions.\n\n"
-
             f"- Whether the scene is simple or cluttered: Consider the overall environment shown in the images. Mark the scene as simple if it contains only the key objects and little to no clutter or distractors. "
             f"If the workspace includes many irrelevant or occluding items, mark it as cluttered.\n\n"
-
             f"- Whether the task requires reasoning: Indicate if the task involves higher-level reasoning (e.g., conditional logic, negation, relational or spatial inference, or concept-based grouping). "
             f"Examples that require reasoning include: 'pick up the non-read object' (negation), 'just touch the red box and nothing else' (selective suppression), "
             f"'find the object that is not stacked' (spatial reasoning), 'if there is a frog, knock it off' (conditional), and 'move similar-colored objects together' (conceptual grouping). "
             f"Tasks like 'pick up the red cup and place it in the bowl' do not require reasoning and should be marked as not requiring reasoning.\n\n"
-
             f"Only return a structured response matching the schema you're instructed to return."
         )
 
@@ -392,7 +393,9 @@ class Episode:
                 )
 
         # If we exhausted all retries, raise error
-        raise RuntimeError(f"Failed to compute metadata for session {self.session.id} after {max_retries} attempts.")
+        raise RuntimeError(
+            f"Failed to compute metadata for session {self.session.id} after {max_retries} attempts."
+        )
 
     @property
     def report(self) -> str:
@@ -645,7 +648,8 @@ def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> 
             for i, report in enumerate(reports)
         )
 
-        prompt = textwrap.dedent(f"""\
+        prompt = textwrap.dedent(
+            f"""\
 We are evaluating a policy named {policy_name} deployed on a robot arm to perform various manipulation tasks.
 This policy was compared head-to-head against other policies across multiple episodes. Each episode includes:
 - A session ID
@@ -692,7 +696,8 @@ List frequently observed failures (e.g., freezing mid-task, grabbing wrong item,
 
 The episode reports are as follows:
 
-{episode_text}""")
+{episode_text}"""
+        )
 
         # Generate full report
         # Run inference Using a strong reasoning model to generate this analysis report.
@@ -815,7 +820,9 @@ if __name__ == "__main__":
     # Connect to the database
     # TODO: use the localhost url
     # database_url = "postgresql://centralserver:m3lxcf830x20g4@localhost:5432/real_eval"
-    database_url = "postgresql://centralserver:m3lxcf830x20g4@34.55.101.123:5432/real_eval"
+    database_url = (
+        "postgresql://centralserver:m3lxcf830x20g4@34.55.101.123:5432/real_eval"
+    )
 
     SessionLocal = initialize_database_connection(database_url)
     logger.info(f"Database connection to {database_url} initialized.")
@@ -836,7 +843,10 @@ if __name__ == "__main__":
                     [
                         {
                             "name": policy.name,
-                            "episodes": [asdict(ep) for ep in policy.get_all_head_to_head_episodes()],
+                            "episodes": [
+                                asdict(ep)
+                                for ep in policy.get_all_head_to_head_episodes()
+                            ],
                         }
                         for policy in valid_policies.values()
                     ],

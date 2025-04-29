@@ -20,7 +20,9 @@ class OpenAIClient:
         """Create a stable, hashable cache key from the request."""
         return json.dumps(request, sort_keys=True)
 
-    def run_inference(self, model: str, messages: list[Dict[str, str]], **kwargs) -> Tuple[Dict[str, Any], bool]:
+    def run_inference(
+        self, model: str, messages: list[Dict[str, str]], **kwargs
+    ) -> Tuple[Dict[str, Any], bool]:
         """Make a chat request with caching."""
         request = {
             "model": model,
@@ -34,7 +36,9 @@ class OpenAIClient:
 
         # Try OpenAI call; do NOT cache errors
         try:
-            response = self._client.chat.completions.create(**request).model_dump(mode="json")
+            response = self._client.chat.completions.create(**request).model_dump(
+                mode="json"
+            )
         except OpenAIError as e:
             raise RuntimeError(f"OpenAI request failed: {e}")
 
@@ -53,7 +57,7 @@ class OpenAIClient:
 
             image_block = {
                 "type": "image_url",
-                "image_url": {"url": f"data:image/png;base64,{encoded_image}"}
+                "image_url": {"url": f"data:image/png;base64,{encoded_image}"},
             }
             content_blocks.append(image_block)
 
@@ -67,7 +71,7 @@ class OpenAIClient:
         text: str,
         expected_structure: Type[BaseModel],
         force_recompute: bool = False,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Any, bool]:
         """Make a multimodal request with a structured outputs"""
         content_blocks = [{"type": "text", "text": text}]
@@ -76,26 +80,32 @@ class OpenAIClient:
                 encoded_image = b64encode(f.read()).decode("utf-8")
             image_block = {
                 "type": "image_url",
-                "image_url": {"url": f"data:image/png;base64,{encoded_image}"}
+                "image_url": {"url": f"data:image/png;base64,{encoded_image}"},
             }
             content_blocks.append(image_block)
 
         messages = [{"role": "user", "content": content_blocks}]
 
-        key = self._make_cache_key({
-            "model": model,
-            "messages": messages,
-            "expected_structure": expected_structure.__name__,
-            **kwargs,
-        })
+        key = self._make_cache_key(
+            {
+                "model": model,
+                "messages": messages,
+                "expected_structure": expected_structure.__name__,
+                **kwargs,
+            }
+        )
 
         if key in self._cache and not force_recompute:
             raw_response = self._cache[key]
             try:
-                parsed = expected_structure(**raw_response["choices"][0]["message"]["parsed"])
+                parsed = expected_structure(
+                    **raw_response["choices"][0]["message"]["parsed"]
+                )
                 return parsed, True
             except Exception as e:
-                print(f"Cached response parsing failed for structured output: {e}. Will recompute fresh.")
+                print(
+                    f"Cached response parsing failed for structured output: {e}. Will recompute fresh."
+                )
 
         try:
             completion = self._client.beta.chat.completions.parse(
