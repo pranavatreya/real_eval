@@ -1,5 +1,6 @@
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 import argparse
 import json
@@ -32,6 +33,8 @@ Usage:
     --skip-refresh: Skips recomputing the analysis and use the cached version of the analysis JSON on disk.
 """
 
+# For the paper, make session cutoff time of April 30, 2025 18:00 UTC or April 30, 2025, 11:00 AM PDT
+SESSION_CUTOFF_TIME = datetime(2025, 4, 30, 18, 0, 0, tzinfo=timezone.utc)
 
 BASE_DIR = os.path.dirname(__file__)
 ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, ".."))
@@ -423,12 +426,15 @@ class Episode:
         """
         Generate a report that summarizes the episode with the head-to-head evaluation notes.
         """
+        assert self.metadata and "task_category" in self.metadata and self.annotations
         assert (
             self.head_to_head
         ), "Episode has no head-to-head evaluation, so nothing to report."
+
         return textwrap.dedent(
             f"""Session ID: {self.session.id}
 Task: {self.session.prompt}
+Task category: {self.metadata['task_category']}
 
 Scene Setup and Task Analysis
 {self.annotations}
@@ -554,7 +560,7 @@ def populate_policy_episodes(policies: dict[str, Policy], gcs_bucket: str) -> No
     """
     db = SessionLocal()
 
-    # Gather all valid evaluation sessions.
+    # Gather all valid evaluation sessions. that are before the cutoff time
     # Valid eval sessions have VALID_SESSION: in the beginning of `evaluation_notes`
     # and check that episodes is not empty
     sessions = (
@@ -562,7 +568,9 @@ def populate_policy_episodes(policies: dict[str, Policy], gcs_bucket: str) -> No
         .filter(
             SessionModel.evaluation_notes.like("VALID_SESSION:%"),
             SessionModel.episodes.any(),
+            SessionModel.session_creation_timestamp <= SESSION_CUTOFF_TIME,
         )
+        .order_by(SessionModel.session_uuid)
         .all()
     )
     logger.info(f"Found {len(sessions)} valid evaluation sessions.")
@@ -667,6 +675,7 @@ def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> 
         }
 
         # Construct the prompt to get the summary
+        logger.info(f"Generating full report for policy {policy_name} with {len(reports)} head-to-head evaluations.")
         episode_text = "\n\n".join(
             f"========== Episode Report #{i + 1} ==========\n{report}"
             for i, report in enumerate(reports)
@@ -677,7 +686,7 @@ def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> 
 We are evaluating a policy named {policy_name} deployed on a robot arm to perform various manipulation tasks.
 This policy was compared head-to-head against other policies across multiple episodes. Each episode includes:
 - A session ID
-- A task description
+- A task description and the task category it belongs to. The possible task categories are: {', '.join(ALL_TASK_CATEGORIES)}.
 - A scene and task analysis
 - Head-to-head evaluation results
 
@@ -687,13 +696,13 @@ Using the episode data provided, generate a **structured and comprehensive summa
 A brief paragraph summarizing the general behavior, capabilities, and limitations of the policy.
 
 2. **Comparative Performance**  
-How the policy performed in head-to-head comparisons against other policies. Include overall win/loss/tie statistics when possible, and cite specific task outcomes using session IDs wrapped in `<ref>...</ref>` tags. Highlight task types where the policy consistently outperforms or underperforms others. Then go deep into the details and analyze the performance of the policy in each episode in respect to the other policy using the head-to-head evaluation notes. Summarize and list 5-10 bullet points with key insights. Make sure in this section every claim about the policy is in respect to other competing policies. Do not discuss the policy in isolation.
+How the policy performed in head-to-head comparisons against other policies across the different task categories. For each task category, create a bullet point with a discussion of how the policy consistently outperformed or underperformed compared to all the other policies. Make sure in this section that every claim about the policy is with respect to other competing policies. When making a claim, always mention how the other policies performed in comparison to the current policy. Do not discuss the policy in isolation. Don't mention a task category unelss there is evidence of the policy performing well or poorly in that category across multiple episodes. Make your claims based on overall performance or underperformance for specific task categories rather than individual episodes. There is no need to reference specific session IDs in this section (no <ref> tags).
 
 3. **Strengths**  
-Bullet-pointed list of notable strengths in manipulation behavior or general reliability. Focus on generalizable behaviors like smooth trajectories, robust grasping, or adaptability. Use concrete examples and session ID citations.
+Bullet-pointed list of notable strengths in manipulation behavior or general reliability. Mention the task categories the policy is good at (if any) instead of basing a claim on a single instance. Focus on generalizable behaviors like smooth trajectories, robust grasping, or adaptability. Use concrete examples and session ID citations.
 
 4. **Weaknesses**  
-Bullet-pointed list of recurring limitations or error patterns. Mention issues such as fine motor control, object confusion, multi-step failure, etc. Include session ID references with `<ref>` tags.
+Bullet-pointed list of recurring limitations or error patterns. Mention the task categories the policy is poor at instead of basing a claim on a single instance. Mention issues such as fine motor control, object confusion, multi-step failure, etc. Include session ID references with `<ref>` tags.
 
 5. **Instruction Following**  
 Analyze how well the policy understands and executes task instructions. Note sensitivity to language structure, ability to follow negated or relational commands, issues with ambiguous phrasing, ability to handle typos, etc. Cite session-specific evidence.
@@ -717,29 +726,35 @@ List frequently observed failures (e.g., freezing mid-task, grabbing wrong item,
 - Avoid generalizing from a single episode unless there is clear evidence of a pattern.
 - Keep the tone analytical and professional, emphasizing repeatable behaviors and insights.
 - Do not invent session IDs. Only use session IDs present in the provided episode reports.
+- There is no need to mention the specific number of episodes and wins/losses/ties in head-to-head evaluations in this report.
 
-The episode reports are as follows:
+The individual episode reports are as follows:
 
 {episode_text}"""
         )
 
         # Generate full report
         # Run inference Using a strong reasoning model to generate this analysis report.
-        response, _ = openai_client.run_inference(
+        response, cached = openai_client.run_inference(
             model="o3-2025-04-16",
             messages=[{"role": "user", "content": prompt}],
             reasoning_effort="high",
             max_completion_tokens=100_000,
         )
+        if cached:
+            logger.info("Full report was generated before.")
+
         full_report: str = response["choices"][0]["message"]["content"]
 
         summary_prompt = textwrap.dedent(
             f"""\
-Given the following full evaluation report of a robot manipulation policy, generate a concise, high-quality summary that captures the main findings from sections 2 through 8.
+Given the following full evaluation report of a robot manipulation policy, generate a concise, high-quality summary that captures the main findings from sections 1 through 9.
 
-Each bullet should summarize the corresponding section in a few sentence fragments, focusing on the most important points. Avoid excessive detail, ensure clarity and correctness.
+Each bullet should summarize the corresponding section in a few sentence fragments, focusing on the most important points. Avoid excessive detail, ensure clarity and correctness. Stick to the facts presented in the full report.
 
 Use the following format exactly:
+
+- Policy Overview: <summary>
 
 - Comparative Performance: <summary>
 
@@ -772,6 +787,7 @@ Here is the full report to summarize:
             max_completion_tokens=30_000,
         )
         summary: str = summary_response["choices"][0]["message"]["content"]
+        pdb.set_trace()
 
         result = PolicyPerformanceAnalysis(
             policy_name=policy_name,
@@ -891,7 +907,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--simple",
         action="store_true",
-        help="Whether to output the policies",
+        help="Whether to output policies and metadata",
     )
     parser.add_argument(
         "--debug",
