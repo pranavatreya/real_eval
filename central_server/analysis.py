@@ -1,9 +1,11 @@
+from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 import argparse
 import json
 import os
 import pdb
+import random
 import textwrap
 import yaml
 
@@ -385,7 +387,26 @@ class Episode:
                     max_tokens=1024,
                     force_recompute=(attempt > 0),
                 )
-                self.metadata = parsed.model_dump(mode="json")
+
+                # Dump to JSON-like dict
+                metadata = parsed.model_dump(mode="json")
+
+                # Validate fields
+                if metadata["task_category"] not in ALL_TASK_CATEGORIES:
+                    raise ValueError(f"Invalid task_category: {metadata['task_category']}")
+
+                for field in [
+                    "clear_camera_view",
+                    "good_lighting",
+                    "clear_task_description",
+                    "simple_scene",
+                    "reasoning_required",
+                ]:
+                    if not isinstance(metadata[field], bool):
+                        raise TypeError(f"Field {field} must be a boolean, got {type(metadata[field])} instead.")
+
+                # If all checks pass
+                self.metadata = metadata
                 return
             except Exception as e:
                 logger.warning(
@@ -483,6 +504,9 @@ class TaskSceneMetadata(BaseModel):
     clear_task_description: bool
     simple_scene: bool
     reasoning_required: bool
+
+
+ALL_TASK_CATEGORIES = {category.value for category in TaskCategory}
 
 
 def get_all_valid_policies() -> dict[str, Policy]:
@@ -789,6 +813,74 @@ def serve_video(video_path):
     return send_from_directory(OUTPUT_DIR, video_path)
 
 
+def debug(task_category_to_commands: dict[str, set[str]], output_path: str) -> None:
+    """
+    Launch an interactive CLI tool to test how well LLM classifications align with human judgment.
+    For each task category, show a random mix of 50 in-category and 50 out-of-category commands
+    (or fewer if not enough examples exist), and ask the user to guess if each one belongs to that category.
+    Log everything to output/debug.txt
+    """
+    log_path: str = os.path.join(output_path, "debug.txt")
+    if os.path.exists(log_path):
+        logger.warning(f"You already took the test. Check: {log_path}")
+
+    all_categories = list(task_category_to_commands.keys())
+    log_lines = []
+    total = 0
+    correct = 0
+
+    print("\nStarting task category verification test. Answer y (yes) or n (no) for each prompt.\n")
+    for target_category in all_categories:
+        print(f"\n--- Testing category: {target_category} ---")
+        in_category = task_category_to_commands[target_category]
+        out_category = [
+            cmd
+            for cat, cmds in task_category_to_commands.items()
+            if cat != target_category
+            for cmd in cmds
+        ]
+
+        n_in = min(50, len(in_category))
+        n_out = min(n_in, len(out_category))
+        examples = [(cmd, True) for cmd in random.sample(list(in_category), n_in)] + \
+                   [(cmd, False) for cmd in random.sample(list(out_category), n_out)]
+        random.shuffle(examples)
+
+        category_total = 0
+        category_correct = 0
+
+        for cmd, is_in_category in examples:
+            print(f"\nTask description: {cmd}")
+            while True:
+                answer = input("Is this '{0}'? (y/n): ".format(target_category)).strip().lower()
+                if answer in ("y", "n"):
+                    break
+                print("Please enter 'y' or 'n'.")
+
+            user_thinks_in_category = (answer == "y")
+            match = user_thinks_in_category == is_in_category
+            total += 1
+            category_total += 1
+            if match:
+                correct += 1
+                category_correct += 1
+
+            log_lines.append(
+                f"[{target_category}] Prompt: {cmd} | Actual: {is_in_category} | User: {user_thinks_in_category} | Correct: {match}"
+            )
+
+        print(f"\nAccuracy for '{target_category}': {category_correct}/{category_total} ({category_correct / category_total:.1%})")
+        log_lines.append(f"Category '{target_category}' accuracy: {category_correct}/{category_total}\n")
+
+    print(f"\n== Final accuracy across all categories: {correct}/{total} ({correct / total:.1%}) ==")
+    log_lines.append(f"\nOverall accuracy: {correct}/{total} ({correct / total:.1%})")
+
+    with open(log_path, "w") as log_file:
+        log_file.write("\n".join(log_lines))
+
+    print(f"\nFull debug session saved to {log_path}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -801,6 +893,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Whether to output the policies",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Run in debug mode to evaluate task classification alignment",
+    )
+
     args = parser.parse_args()
 
     gcs_bucket_name: str = "distributed_robot_eval"
@@ -831,6 +929,20 @@ if __name__ == "__main__":
         # Get all valid policies and populate them with the episodes across all sessions. Download recordings.
         valid_policies: dict[str, Policy] = get_all_valid_policies()
         populate_policy_episodes(valid_policies, gcs_bucket_name)
+
+        if args.debug:
+            # Build a mapping of task category to commands
+            task_category_to_commands: dict[str, set[str]] = defaultdict(set)
+            for policy in valid_policies.values():
+                for episode in policy.episodes:
+                    if episode.metadata and "task_category" in episode.metadata:
+                        category = episode.metadata["task_category"]
+                        command = episode.session.prompt.strip()
+                        task_category_to_commands[category].add(command)
+
+            # Call the CLI debug tool
+            debug(task_category_to_commands, output_path)
+            exit(0)
 
         # ANALYSIS
         if not args.simple:
