@@ -897,6 +897,35 @@ def debug(task_category_to_commands: dict[str, set[str]], output_path: str) -> N
     print(f"\nFull debug session saved to {log_path}")
 
 
+def compare_best_against_others(all_valid_policies: dict[str, Policy]) -> None:
+    # Output task category performance breakdown of pi0_fast_droid vs others
+    scores_by_category = defaultdict(lambda: {"pi0_fast_droid": [], "others": []})
+
+    for policy in all_valid_policies.values():
+        for episode in policy.episodes:
+            assert episode.metadata and "task_category" in episode.metadata
+
+            category = episode.metadata["task_category"]
+            score = episode.partial_success_score
+            if policy.name == "pi0_fast_droid":
+                scores_by_category[category]["pi0_fast_droid"].append(score)
+            else:
+                scores_by_category[category]["others"].append(score)
+
+    logger.info("\nAverage partial success scores by task category:")
+
+    for category in sorted(scores_by_category.keys()):
+        pi0_scores = scores_by_category[category]["pi0_fast_droid"]
+        other_scores = scores_by_category[category]["others"]
+
+        avg_pi0 = sum(pi0_scores) / len(pi0_scores) if pi0_scores else 0
+        avg_others = sum(other_scores) / len(other_scores) if other_scores else 0
+
+        logger.info(f"\n{category}:")
+        logger.info(f"  pi0_fast_droid     ({len(pi0_scores)} eps): {avg_pi0:.3f}")
+        logger.info(f"  all other policies ({len(other_scores)} eps): {avg_others:.3f}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -946,16 +975,28 @@ if __name__ == "__main__":
         valid_policies: dict[str, Policy] = get_all_valid_policies()
         populate_policy_episodes(valid_policies, gcs_bucket_name)
 
-        if args.debug:
-            # Build a mapping of task category to commands
-            task_category_to_commands: dict[str, set[str]] = defaultdict(set)
-            for policy in valid_policies.values():
-                for episode in policy.episodes:
-                    if episode.metadata and "task_category" in episode.metadata:
-                        category = episode.metadata["task_category"]
-                        command = episode.session.prompt.strip()
-                        task_category_to_commands[category].add(command)
+        # Build a mapping off prompt to task category
+        prompt_to_task_category: dict[str, str] = {}
+        task_category_to_commands: dict[str, set[str]] = defaultdict(set)
+        for policy in valid_policies.values():
+            for episode in policy.episodes:
+                if episode.metadata and "task_category" in episode.metadata:
+                    category = episode.metadata["task_category"]
 
+                    prompt_to_task_category[episode.session.prompt] = category
+
+                    command = episode.session.prompt.strip()
+                    task_category_to_commands[category].add(command)
+
+        # Use the mapping to set the task category for each episode of each policy when metadata doesn't exist
+        for policy in valid_policies.values():
+            for episode in policy.episodes:
+                if not episode.metadata or "task_category" not in episode.metadata:
+                    assert episode.session.prompt in prompt_to_task_category
+                    task_category = prompt_to_task_category[episode.session.prompt]
+                    episode.metadata = {"task_category": task_category}
+
+        if args.debug:
             # Call the CLI debug tool
             debug(task_category_to_commands, output_path)
             exit(0)
@@ -965,16 +1006,15 @@ if __name__ == "__main__":
             # For each policy, analyze all its head-to-head comparisons and notes from all of its episodes
             analyze_head_to_head_evaluations_per_policy(valid_policies)
         else:
+            compare_best_against_others(valid_policies)
+
             # Just dump the policies with their episodes that have head-to-head evaluations
             with open(SIMPLE_ANALYSIS_JSON_PATH, "w") as f:
                 json.dump(
                     [
                         {
                             "name": policy.name,
-                            "episodes": [
-                                asdict(ep)
-                                for ep in policy.get_all_head_to_head_episodes()
-                            ],
+                            "episodes": [asdict(ep) for ep in policy.episodes],
                         }
                         for policy in valid_policies.values()
                     ],
