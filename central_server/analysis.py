@@ -937,6 +937,50 @@ def compare_best_against_others(all_valid_policies: dict[str, Policy]) -> None:
         logger.info(f"  all others (excl paligemma_binning): ({len(data['others_excl_paligemma']):>3} eps) {safe_avg(data['others_excl_paligemma'])}\n")
 
 
+def compare_head_to_head_win_rates(all_valid_policies: dict[str, Policy]) -> None:
+    outcomes_by_category = defaultdict(lambda: {
+        "pi0_fast_droid": {"wins": 0, "total": 0},
+        "others_incl_paligemma": {"wins": 0, "total": 0},
+        "others_excl_paligemma": {"wins": 0, "total": 0},
+    })
+
+    for policy in all_valid_policies.values():
+        for episode in policy.get_all_head_to_head_episodes():
+            if not episode.metadata or "task_category" not in episode.metadata:
+                raise ValueError(f"Missing task_category in episode metadata for policy {policy.name}, session {episode.session.id}")
+
+            category = episode.metadata["task_category"]
+            perspective = episode.head_to_head.perspective_policy
+            won = episode.head_to_head.won
+
+            if perspective == "pi0_fast_droid":
+                outcomes_by_category[category]["pi0_fast_droid"]["total"] += 1
+                if won:
+                    outcomes_by_category[category]["pi0_fast_droid"]["wins"] += 1
+            else:
+                outcomes_by_category[category]["others_incl_paligemma"]["total"] += 1
+                if won:
+                    outcomes_by_category[category]["others_incl_paligemma"]["wins"] += 1
+
+                if perspective != "paligemma_binning_droid":
+                    outcomes_by_category[category]["others_excl_paligemma"]["total"] += 1
+                    if won:
+                        outcomes_by_category[category]["others_excl_paligemma"]["wins"] += 1
+
+    logger.info("\nHead-to-head win rates by task category:\n")
+
+    for category in sorted(outcomes_by_category.keys()):
+        data = outcomes_by_category[category]
+
+        def fmt(wins: int, total: int) -> str:
+            return f"{wins}/{total} ({(wins / total * 100):.1f}%)" if total > 0 else "N/A"
+
+        logger.info(f"{category}:")
+        logger.info(f"  pi0_fast_droid:                        {fmt(**data['pi0_fast_droid'])}")
+        logger.info(f"  all other policies:                   {fmt(**data['others_incl_paligemma'])}")
+        logger.info(f"  all others (excl paligemma_binning): {fmt(**data['others_excl_paligemma'])}\n")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -1018,6 +1062,7 @@ if __name__ == "__main__":
             analyze_head_to_head_evaluations_per_policy(valid_policies)
         else:
             compare_best_against_others(valid_policies)
+            compare_head_to_head_win_rates(valid_policies)
 
             # Just dump the policies with their episodes that have head-to-head evaluations
             with open(SIMPLE_ANALYSIS_JSON_PATH, "w") as f:
