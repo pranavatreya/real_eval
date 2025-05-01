@@ -898,32 +898,43 @@ def debug(task_category_to_commands: dict[str, set[str]], output_path: str) -> N
 
 
 def compare_best_against_others(all_valid_policies: dict[str, Policy]) -> None:
-    # Output task category performance breakdown of pi0_fast_droid vs others
-    scores_by_category = defaultdict(lambda: {"pi0_fast_droid": [], "others": []})
+    from statistics import mean
+
+    scores_by_category = defaultdict(
+        lambda: {
+            "pi0_fast_droid": [],
+            "others_incl_paligemma": [],
+            "others_excl_paligemma": [],
+        }
+    )
 
     for policy in all_valid_policies.values():
         for episode in policy.episodes:
-            assert episode.metadata and "task_category" in episode.metadata
+            assert episode.metadata and "task_category" in episode.metadata, \
+                f"Missing metadata for episode in policy {policy.name}, session {episode.session.id}"
 
             category = episode.metadata["task_category"]
             score = episode.partial_success_score
+
             if policy.name == "pi0_fast_droid":
                 scores_by_category[category]["pi0_fast_droid"].append(score)
             else:
-                scores_by_category[category]["others"].append(score)
+                scores_by_category[category]["others_incl_paligemma"].append(score)
+                if policy.name != "paligemma_binning_droid":
+                    scores_by_category[category]["others_excl_paligemma"].append(score)
 
-    logger.info("\nAverage partial success scores by task category:")
+    logger.info("\nAverage partial success scores by task category:\n")
 
     for category in sorted(scores_by_category.keys()):
-        pi0_scores = scores_by_category[category]["pi0_fast_droid"]
-        other_scores = scores_by_category[category]["others"]
+        data = scores_by_category[category]
 
-        avg_pi0 = sum(pi0_scores) / len(pi0_scores) if pi0_scores else 0
-        avg_others = sum(other_scores) / len(other_scores) if other_scores else 0
+        def safe_avg(scores: list[float]) -> str:
+            return f"{mean(scores):.3f}" if scores else "N/A"
 
-        logger.info(f"\n{category}:")
-        logger.info(f"  pi0_fast_droid     ({len(pi0_scores)} eps): {avg_pi0:.3f}")
-        logger.info(f"  all other policies ({len(other_scores)} eps): {avg_others:.3f}")
+        logger.info(f"{category}:")
+        logger.info(f"  pi0_fast_droid:                        ({len(data['pi0_fast_droid']):>3} eps) {safe_avg(data['pi0_fast_droid'])}")
+        logger.info(f"  all other policies:                   ({len(data['others_incl_paligemma']):>3} eps) {safe_avg(data['others_incl_paligemma'])}")
+        logger.info(f"  all others (excl paligemma_binning): ({len(data['others_excl_paligemma']):>3} eps) {safe_avg(data['others_excl_paligemma'])}\n")
 
 
 if __name__ == "__main__":
