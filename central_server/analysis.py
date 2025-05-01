@@ -787,7 +787,6 @@ Here is the full report to summarize:
             max_completion_tokens=30_000,
         )
         summary: str = summary_response["choices"][0]["message"]["content"]
-        pdb.set_trace()
 
         result = PolicyPerformanceAnalysis(
             policy_name=policy_name,
