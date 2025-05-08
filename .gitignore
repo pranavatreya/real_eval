@@ -4,6 +4,7 @@ configs/llm_inference.yaml
 # This is where video recordings are downloaded to
 output/evaluation_data/
 output/cache
+download_all_vids
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
