@@ -124,3 +124,18 @@ h1 {
 .hidden {
   display: none !important;
 }
+
+.toggle-button {
+  background-color: #1a73e8;     /* Blue background */
+  color: white;                 /* White text */
+  border: none;                 /* Remove border */
+  border-radius: 4px;           /* Rounded corners */
+  padding: 0.2rem 0.6rem;       /* Padding for size */
+  font-size: 1rem;              /* Font size */
+  cursor: pointer;             /* Cursor indicates clickability */
+  transition: background-color 0.2s;
+}
+
+.toggle-button:hover {
+  background-color: #155ab6;   /* Darker on hover */
+}

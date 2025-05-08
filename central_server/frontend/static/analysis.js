@@ -85,7 +85,7 @@ document.body.addEventListener("mouseover", e => {
 
     if (videoPath) {
       video.pause();
-      video.src = `/videos/${videoPath}`;
+      video.src = `https://storage.googleapis.com/distributed_robot_eval/${videoPath}`;
       video.load();  // Force reload the new video
       video.playbackRate = 4.0;   // Set 4x speed before playing
 

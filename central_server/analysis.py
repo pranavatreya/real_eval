@@ -816,18 +816,6 @@ def serve_policy_json():
     return send_from_directory(OUTPUT_DIR, "policy_analysis.json")
 
 
-@app.route("/videos/<path:video_path>")
-def serve_video(video_path):
-    """
-    Serve videos stored under OUTPUT_DIR.
-    """
-    full_video_path = os.path.join(OUTPUT_DIR, video_path)
-    if not os.path.isfile(full_video_path):
-        abort(404)
-    # Serve from output folder
-    return send_from_directory(OUTPUT_DIR, video_path)
-
-
 def debug(task_category_to_commands: dict[str, set[str]], output_path: str) -> None:
     """
     Launch an interactive CLI tool to test how well LLM classifications align with human judgment.
