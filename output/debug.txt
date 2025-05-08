@@ -1,0 +1,472 @@
+[Minimal or No Action] Prompt: put the cable in the basket | Actual: False | User: False | Correct: True
+[Minimal or No Action] Prompt: put the tape on the blue towel | Actual: False | User: False | Correct: True
+[Minimal or No Action] Prompt: pick up the green bowl | Actual: False | User: False | Correct: True
+[Minimal or No Action] Prompt: do absolutely nothing. do not move | Actual: True | User: True | Correct: True
+[Minimal or No Action] Prompt: point your end gripper straight horizontally and freeze after. | Actual: True | User: True | Correct: True
+[Minimal or No Action] Prompt: do not move | Actual: True | User: True | Correct: True
+Category 'Minimal or No Action' accuracy: 6/6
+
+[Pick and Place] Prompt: pick up white cup and put in dustbin | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: flip the blue switch | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: put the stuffed animal in the white box | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Uncross the knife and fork. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: stack black bowl on white bowl | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: put the black pen in the blue cup | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: put tape into the drawer | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Place the croissant in the pot and then put the lid on the pot | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: knock the cup off the table | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: put the strawberry in the pink bowl | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: close the black and pink glasses case | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: pick up the roll of tape and place on bucket | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Put the bolt in the drawer. | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: pick the carrot and place it on the yellow dish | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: close the laptop screen | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Pick up the marker and draw on the paper towel sheet | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: fold the towel | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Cover the drill with the green rag. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Pick up the marker and draw something on the paper | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Wash the plate with the sponge. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Pull the trigger on the drill. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Take the lid off the jar and pour it onto the bread. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: put the cable in the basket | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: pick up the screwdriver | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: close the drawer | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: pick up the black board wiper and wipe the text off of the whiteboard | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: pick the carrot and place it in the metal bowl | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Put the carrot in the bottom drawer. | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: place the purple cup on the right side | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: pick up red cube in green bowl and put in outside the bowl | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Put all the food items into the bowl. | Actual: True | User: False | Correct: False
+[Pick and Place] Prompt: knock the clear cup off the table comppleknock off the cup completely off the table. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: upright the water bottle | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Place the cloth on the chair | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: find the fruit | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: pick up green marker | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Put the yellow plate on the table | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Put the bowl in the dishwasher | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Place the green rag on the rack. | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: pick the purple cup and place it in the sink | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: find the pineapple in the scene | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Close the drawer. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: pick up the red object into the bowl | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Fold the rag. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Pour the mug contents into the bowl | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: place the bottle of mustard into the wooden tray | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Roll over the block. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: A robot is encapsulated between two mugs. Take the robot and place it in the the bowl. | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Drape the cloth over the box then put the red bowl in the silver bowl. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Pour the water from the mug into the silver bowl | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Balance the hammer on the block. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Close the top drawer | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Put the onion to the big pot. | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: pick the spoon and place it in the silver bowl | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: touch the black book | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: place the white ball into the plastic cup | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: place the water bottle into the blue tray | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Close the second drawer | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: erase the mark on the table | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: pour the cup into the bowl | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: put the tape on the block of paper | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: put red box in brown box | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: open the top left drawer | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: do not move | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Place the cup right side up on the plate. | Actual: True | User: False | Correct: False
+[Pick and Place] Prompt: Flip the bread with the spatula. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: knock the brown bear off the box | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: just touch the red box and nothing else | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: put the bowl into the drawer | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: take the portafilter down the espresso machine | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: push the dustpan to the right | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Place the fork to the right of the plate. | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Push over the white box | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: put yellow fork on white napkin | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: upright the cup | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Place all the three objects close together. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: pick up brown puppet and put in brown box | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: just knock off the green frog off the brown box and nothing else | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Move the cup near the plate. | Actual: True | User: False | Correct: False
+[Pick and Place] Prompt: put the binder clip in bowl | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Pick up the red object and place it closer to the yellow object. | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: touch the book with the flower on its cover | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Empty the bowl. | Actual: True | User: False | Correct: False
+[Pick and Place] Prompt: Place the yellow cup between the orange legos. | Actual: True | User: False | Correct: False
+[Pick and Place] Prompt: Stir the pot with the plastic spoon. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Put the ketchup in the bowl | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Find the pineapple on the shelf on your left. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: put the stapler on the book | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Touch the stop sign. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: slide the blue bowl to the left side of the table | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: pick up the red cup and put in inside the cabinet through the open door. | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: ach of the red cups | Actual: True | User: False | Correct: False
+[Pick and Place] Prompt: put the duster on notebook | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: pick the purple cup and place it in the yellow bowl | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Move the green cloth to the lower table. | Actual: True | User: False | Correct: False
+[Pick and Place] Prompt: put the corn into the purple plate | Actual: True | User: True | Correct: True
+[Pick and Place] Prompt: Stir the pot with the wooden spoon. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: use the green marker to write on the white board | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Pour the ketchup on to the tray. | Actual: False | User: False | Correct: True
+[Pick and Place] Prompt: Push over the box with white english letters on it. | Actual: False | User: False | Correct: True
+Category 'Pick and Place' accuracy: 93/100
+
+[Tool Use] Prompt: Stir the pot. | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: Stir the pot with the wooden spoon. | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: pick up the pineapple and place into the bowl | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: Stab the bread with the chopstick. | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: Flip the bread with the spatula. | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: put tape in the red plate | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: Play the xylophone with the green hammer. | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: pick up the black spoon and scoop up some coffee beans from the metal bowl with the spoon and pour the beans onto the red plate | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: Wash the plate with the sponge. | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: pick up the black board wiper and wipe the text off of the whiteboard | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: Push over the white box | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: Stir the pot with the plastic spoon. | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: use the white cloth to wipe the table | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: pour the cup to the bowl | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: put the green marker in the brown bowl | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: Use black eraser to clean white board | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: place all the trash into the bin | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: clean up the table | Actual: True | User: False | Correct: False
+[Tool Use] Prompt: Pour water from the teapot to the pot | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: wipe the table | Actual: True | User: False | Correct: False
+[Tool Use] Prompt: pick up green marker | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: use the green marker to write on the white board | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: Put the blue spoon and the bread on the plate. | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: clean up dust on the table | Actual: True | User: False | Correct: False
+[Tool Use] Prompt: Put yellow rubber ducks on top of the shelf. | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: Balance the spatula on the bowl. | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: pick up the black board wiper and use it to wipe the text off of the whiteboard | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: put the spoon in the cup | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: Wipe the paper with the dry erase marker. | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: put orange in the blue plate | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: pick up the cups, then put the ball in the green cup | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: there are two dish brushes. pick up the yellow gray one and not the white one. | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: Put the green cylinder into the blue bowl | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: pick up the yellow duck on the left and put it in the red cup on the left then pick up the yellow duck on the right and put it in the red cup on the right | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: Close the second drawer | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: Pick up the marker and draw on the paper towel sheet | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: Put the red bowl and the ducky in the silver bowl. | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: dust off the paper pieces | Actual: True | User: False | Correct: False
+[Tool Use] Prompt: Put the yellow rubber ducks into separate mugs. | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: clean the table | Actual: True | User: False | Correct: False
+[Tool Use] Prompt: Put the block in the silver bowl | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: stir the pan with the spoon | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: Cut the bread with the knife. | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: pick up the plant on the bookshelf | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: erase the board | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: erase the mark on the table | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: place one battery on each dish | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: hold up the object that is not RED | Actual: False | User: False | Correct: True
+[Tool Use] Prompt: Pick up the marker and draw something on the paper | Actual: True | User: True | Correct: True
+[Tool Use] Prompt: Put the marker in the cup. | Actual: False | User: False | Correct: True
+Category 'Tool Use' accuracy: 45/50
+
+[Object Manipulation] Prompt: Put the marker on the paper. | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: pick up the pineapple | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: upright the water bottle | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: pour the cup into the tape | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Pour the water from the mug into the silver bowl | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Place the carrot to the left of the mug | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: turn on the coffee machine | Actual: True | User: False | Correct: False
+[Object Manipulation] Prompt: move the egg from the blue bowl to the black bowl | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: Place the croissant in the pot and then put the lid on the pot | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: Put the cup on the plate. | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: put the eggplant in the blue plate | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: Pour the mug contents into the bowl | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Close the box. | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: remove the wrench from the beaker | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Pour water from the teapot to the pot | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Pull the pegs out. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Stack the cups to form a pyramid. | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: Rotate the bread 90 degrees counter clockwise. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Balance the red hammer on the purple toy. | Actual: False | User: True | Correct: False
+[Object Manipulation] Prompt: upright the tape | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Pull the marker out of the tube | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Cover the plastic piggy bank with the blue cloth. | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: put green frog in red box | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: turn the carrot horizontally | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Roll over the block. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Push down on the sponge. | Actual: True | User: False | Correct: False
+[Object Manipulation] Prompt: Pour the coffee out of the test tube on to the plate | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Pour the contents of the kettle into the cup. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Take the lid off the jar and pour it onto the bread. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: upright the cup | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Rotate the kettle 90 degrees clockwise. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Balance the hammer on the block. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: pick the carrot and place it on the yellow dish | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: flip the blue switch | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Press a button on the phone. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Put the red mug upside down. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Pull the trigger on the drill. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Put the red marker in the purple bowl | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: pick up green frog | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: Drop the rubber ducks iin the drawer and then close the drawer | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: Pour some juice in the white cup. Then keep the juice bottle back. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: pour the cup into the bowl | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Pick up the red object and place in the bowl | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: just knock off the green frog off the brown box and nothing else | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: Flip over the cup. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: uncap the pen | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Hit the cymbal. | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: touch the book with the apple | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: Balance the spatula on the bowl. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Create the tallest structure with the objects in front of you quickly. | Actual: False | User: True | Correct: False
+[Object Manipulation] Prompt: pick up brown puppet and put in brown box | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: Put the right duck in the left cup. | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: Pour the nuts from the red cup onto the plate. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Drape the white cloth over the chair | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: put brown spoon in green bowl | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: Put the marker into the plastic tube. | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: put the towel in the blue plate | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: Pick up the marker and draw on the paper towel sheet | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: pull out the tissue | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Lay the block on its side. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Find the yellow object, pick it up, and place in the bowl | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: pour the cup to the bowl | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: put the bowl into the drawer | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: unplug the black cable | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: find the fruit | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: place the duck into the teal pan | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: Pour the ketchup on to the tray. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: Uncross the knife and fork. | Actual: True | User: False | Correct: False
+[Object Manipulation] Prompt: push over the blocks | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: place all the trash into the bin | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: Move the cup near the plate. | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: pick up the brown bear | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: Place the cloth on the chair | Actual: False | User: False | Correct: True
+[Object Manipulation] Prompt: Stab the bread with the chopstick. | Actual: True | User: False | Correct: False
+[Object Manipulation] Prompt: Pick the lid off of the black kettle. | Actual: True | User: True | Correct: True
+[Object Manipulation] Prompt: \pick up the towel and drape it over the back of the black chair | Actual: False | User: False | Correct: True
+Category 'Object Manipulation' accuracy: 70/76
+
+[Group / Organize / Stack] Prompt: put the wired mouse on the gray cloth | Actual: False | User: False | Correct: True
+[Group / Organize / Stack] Prompt: stack the bowls | Actual: True | User: True | Correct: True
+[Group / Organize / Stack] Prompt: pick up the cups, then put the ball in the green cup | Actual: False | User: False | Correct: True
+[Group / Organize / Stack] Prompt: place the blue block next to the green block | Actual: True | User: False | Correct: False
+[Group / Organize / Stack] Prompt: Stack the orange legos. | Actual: True | User: True | Correct: True
+[Group / Organize / Stack] Prompt: Open the drawer with blue handle. | Actual: False | User: False | Correct: True
+[Group / Organize / Stack] Prompt: Create the tallest structure with the objects in front of you quickly. | Actual: True | User: True | Correct: True
+[Group / Organize / Stack] Prompt: stack black bowl on white bowl | Actual: True | User: True | Correct: True
+[Group / Organize / Stack] Prompt: Build the jenga tower. | Actual: True | User: True | Correct: True
+[Group / Organize / Stack] Prompt: Put the carrot in the bottom drawer. | Actual: False | User: False | Correct: True
+[Group / Organize / Stack] Prompt: pick up the green frog | Actual: False | User: False | Correct: True
+[Group / Organize / Stack] Prompt: Unpack the box. | Actual: False | User: True | Correct: False
+[Group / Organize / Stack] Prompt: push the blocks together to make a square | Actual: True | User: False | Correct: False
+[Group / Organize / Stack] Prompt: Place the lid on the pot. | Actual: False | User: False | Correct: True
+[Group / Organize / Stack] Prompt: Stack the cups to form a pyramid. | Actual: True | User: True | Correct: True
+[Group / Organize / Stack] Prompt: gather all items | Actual: True | User: True | Correct: True
+[Group / Organize / Stack] Prompt: Place all items on an orange tile. | Actual: True | User: True | Correct: True
+[Group / Organize / Stack] Prompt: pour the cup into the bowl | Actual: False | User: False | Correct: True
+[Group / Organize / Stack] Prompt: stack the three rolls of tape | Actual: True | User: True | Correct: True
+[Group / Organize / Stack] Prompt: Stack the blue blocks | Actual: True | User: True | Correct: True
+[Group / Organize / Stack] Prompt: Put the red bottle into the blue bowl | Actual: False | User: False | Correct: True
+[Group / Organize / Stack] Prompt: Hang up the phone. | Actual: False | User: False | Correct: True
+[Group / Organize / Stack] Prompt: put the red box into the white tray | Actual: False | User: False | Correct: True
+[Group / Organize / Stack] Prompt: put the ball next to the carrot | Actual: False | User: False | Correct: True
+[Group / Organize / Stack] Prompt: pick up the one with different color | Actual: False | User: False | Correct: True
+[Group / Organize / Stack] Prompt: Place all the three objects close together. | Actual: True | User: True | Correct: True
+[Group / Organize / Stack] Prompt: Create a tower made of two blocks. | Actual: True | User: True | Correct: True
+[Group / Organize / Stack] Prompt: pick up the book | Actual: False | User: False | Correct: True
+Category 'Group / Organize / Stack' accuracy: 25/28
+
+[Open / Close] Prompt: Put the purple bowl into the dishrack | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: Close the small drawer. | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: Open the middle drawer. | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: Roll over the block. | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: pick up the pineapple | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: Close the box. | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: Put the bowl in the dishwasher | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: close the wet tissue | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: pull the door | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: Take the lid off the pot. | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: Pull the pegs out. | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: Put the tool on the plate. | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: Put the yellow plate on the table | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: Open the neural networks book. | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: Close the top drawer | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: Close the drawer. | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: Close the second drawer | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: Close the lid smaller pot. | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: put the orange inside the tape | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: Pick up the marker and draw something on the paper | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: Place the yellow cup between the orange legos. | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: close the top drawer | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: put orange marker in green bowl | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: Create a tower made of two blocks. | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: open the top left drawer | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: put the tape on the block of paper | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: put the stapler in the purple bowl | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: Close the drawer | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: Open the water bottle. | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: use the white cloth to wipe the table | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: put the stapler on the cloth | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: close the drawer | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: place the glasses into the case | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: upright the cup | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: close the laptop screen | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: open the card and put marker on top of the pages | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: find the pineapple and place into the bowl | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: close the water jar | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: open the coffee machine | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: pick up green frog | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: Open the drawer with blue handle. | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: Flip over the cup. | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: Put the rubber bands in the cardboard box. | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: Put the ducky in the box. | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: Put the towel blue bowl | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: close the black and pink glasses case | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: Place all items on an orange tile. | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: Open the green book. | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: put the green marker on the notebook | Actual: False | User: False | Correct: True
+[Open / Close] Prompt: close the left door on the top compartment of the cabinet | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: Open the drawer | Actual: True | User: True | Correct: True
+[Open / Close] Prompt: Open the kettle's lid. | Actual: True | User: True | Correct: True
+Category 'Open / Close' accuracy: 52/52
+
+[Sorting / Classification] Prompt: please touch two different books | Actual: True | User: True | Correct: True
+[Sorting / Classification] Prompt: move the objects with similar color together | Actual: True | User: True | Correct: True
+[Sorting / Classification] Prompt: put all cups into the yellow bowl | Actual: True | User: True | Correct: True
+[Sorting / Classification] Prompt: put all cups into the bin | Actual: True | User: True | Correct: True
+[Sorting / Classification] Prompt: pour the cup to the bowl | Actual: False | User: False | Correct: True
+[Sorting / Classification] Prompt: put the strawberry in the pink bowl | Actual: False | User: False | Correct: True
+[Sorting / Classification] Prompt: put the brown bowl in the drawer | Actual: False | User: False | Correct: True
+[Sorting / Classification] Prompt: Place the carrot to the left of the mug | Actual: False | User: False | Correct: True
+[Sorting / Classification] Prompt: put all carrots into the bowl | Actual: True | User: True | Correct: True
+[Sorting / Classification] Prompt: place the cloth on the screw driver | Actual: False | User: False | Correct: True
+[Sorting / Classification] Prompt: Put all red items in the bowl | Actual: True | User: True | Correct: True
+[Sorting / Classification] Prompt: pick up the red cup and put it inside the cabinet through the open door | Actual: False | User: False | Correct: True
+Category 'Sorting / Classification' accuracy: 12/12
+
+[Find / Search] Prompt: find the fruit | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: find the creeper toy | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: please touch two different books | Actual: True | User: False | Correct: False
+[Find / Search] Prompt: pick up the shiny metal lid by its round handle in it's center then place the lid to the left of the metal pot | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: pick up red cube in bowl and put outside bowl and put red marker inside the bowl | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: put all cups into the bin | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: put the black sponge on chair | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: just touch the red box and nothing else | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: \pick up the towel and drape it over the back of the black chair | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: knock the purple cup into the wooden box | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: Point at the kettle. | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: touch a book then the bear. nothing else but those two please | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: touch the book | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: Place the lid on the pot. | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: Search for the pineapple on the shelf on your right. | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: Put the red mug near the yellow rubber duck on top of the brown paper towel roll. | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: put the pen on cloth | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: Stab the bread with the chopstick. | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: pick up the plant on the bookshelf | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: Find the yellow object, pick it up, and place in the bowl | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: Place the yellow cup between the orange legos. | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: Touch the orange book on the shelf. | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: Put yellow rubber ducks on top of the shelf. | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: touch the book with the flower on its cover | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: point your end gripper straight horizontally and freeze after. | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: Place the blue cup in the mug. | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: Take everything out of the pot. | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: find the plant on the bookshelf and place into bowl | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: put the white bottle on paper organizer | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: Find the bread. | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: touch the black book | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: pull out the tissue | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: put the stapler on the towel | Actual: False | User: False | Correct: True
+[Find / Search] Prompt: Find the pineapple on the shelf on your left. | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: touch the book with the cat please | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: find the pineapple in the scene | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: Touch the stop sign. | Actual: True | User: True | Correct: True
+[Find / Search] Prompt: find and pick up the pineapple on the shelf. | Actual: True | User: True | Correct: True
+Category 'Find / Search' accuracy: 37/38
+
+[Cover / Drape / Fold] Prompt: Drape the cloth over the box then put the red bowl in the silver bowl. | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: Uncross the knife and fork. | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: pick up the  and put it on one of the cards | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: Cover the robot with the bowl | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: Take the lid off the pot. | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: put the brown bowl in the purple plate | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: pull the door | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: Drape the white cloth over the chair | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: Place the grey tray on the blue cabinet. | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: do absolutely nothing. do not move | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: Cover the bowl with the blue plate | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: touch the book with the flower on its cover | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: cover the screwdriver with towel | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: put the marker in drawer | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: Put the marker on the paper. | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: Drape the cloth over the box. | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: Pick up the red object and place in the bowl | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: put the cloth on white bowl | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: place the cloth on the screw driver | Actual: True | User: False | Correct: False
+[Cover / Drape / Fold] Prompt: Put the red bowl in the silver bowl then drape the cloth over the box. | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: close the top drawer | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: place the carrot on the towel and then fold the towel | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: fold the towel | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: Fold the green cloth. | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: Cover the plastic piggy bank with the blue cloth. | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: pick up the towel and drape it over the back of the black chair | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: Put the rubber ducks into the red mugs the ducks are in front of. | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: find the pineapple and place into the bowl | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: Cover the drill with the green rag. | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: Place the hammer on the block. | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: Wipe the paper with the dry erase marker. | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: Fold the rag. | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: Fold the cloth. | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: \pick up the towel and drape it over the back of the black chair | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: fold the blue towel | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: Fold the blue cloth. | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: use the white cloth to wipe the table | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: Fold the cloth | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: pick up the screwdriver | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: cover the yellow bowl with the towel | Actual: True | User: True | Correct: True
+[Cover / Drape / Fold] Prompt: Find the bread. | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: Touch the orange book on the shelf. | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: place the shoes inside the box | Actual: False | User: False | Correct: True
+[Cover / Drape / Fold] Prompt: put the towel on top of the tape | Actual: True | User: False | Correct: False
+Category 'Cover / Drape / Fold' accuracy: 42/44
+
+[Move / Slide] Prompt: Push the plate into the cup. | Actual: True | User: True | Correct: True
+[Move / Slide] Prompt: move the clipper into the jar | Actual: True | User: True | Correct: True
+[Move / Slide] Prompt: slide the blue bowl to the left side of the table | Actual: True | User: True | Correct: True
+[Move / Slide] Prompt: Cover the drill with the green rag. | Actual: False | User: False | Correct: True
+[Move / Slide] Prompt: Move the computer mouse to the left | Actual: True | User: True | Correct: True
+[Move / Slide] Prompt: Open the water bottle. | Actual: False | User: False | Correct: True
+[Move / Slide] Prompt: Push the banana towards the onion. | Actual: True | User: True | Correct: True
+[Move / Slide] Prompt: pick up the black spoon and scoop up some coffee beans from the metal bowl with the spoon and pour the beans onto the red plate | Actual: False | User: False | Correct: True
+[Move / Slide] Prompt: Put the tool on the plate. | Actual: False | User: False | Correct: True
+[Move / Slide] Prompt: Put the red marker in the purple bowl | Actual: False | User: False | Correct: True
+[Move / Slide] Prompt: Push the cup off of the black bowl. | Actual: True | User: True | Correct: True
+[Move / Slide] Prompt: move the deck of card to notebook | Actual: True | User: True | Correct: True
+[Move / Slide] Prompt: put the two pink objects next to each other | Actual: False | User: False | Correct: True
+[Move / Slide] Prompt: push the ball to the right | Actual: True | User: True | Correct: True
+[Move / Slide] Prompt: put marker in bowl | Actual: False | User: False | Correct: True
+[Move / Slide] Prompt: A robot is encapsulated between two mugs. Take the robot and place it in the the bowl. | Actual: False | User: False | Correct: True
+[Move / Slide] Prompt: move the egg from the blue bowl to the black bowl | Actual: False | User: True | Correct: False
+[Move / Slide] Prompt: push the dustpan to the right | Actual: True | User: True | Correct: True
+Category 'Move / Slide' accuracy: 17/18
+
+[Knock Over / Topple] Prompt: move the objects with similar color together | Actual: False | User: False | Correct: True
+[Knock Over / Topple] Prompt: Push over the white box | Actual: True | User: True | Correct: True
+[Knock Over / Topple] Prompt: Hit the cymbal. | Actual: True | User: True | Correct: True
+[Knock Over / Topple] Prompt: knock the brown bear off the box | Actual: True | User: True | Correct: True
+[Knock Over / Topple] Prompt: Push over the stacked blocks on the table. | Actual: True | User: True | Correct: True
+[Knock Over / Topple] Prompt: Close the second drawer | Actual: False | User: False | Correct: True
+[Knock Over / Topple] Prompt: knock off the green frog. if there is no frog, do nothing. | Actual: True | User: True | Correct: True
+[Knock Over / Topple] Prompt: put the tape into the drawer | Actual: False | User: False | Correct: True
+[Knock Over / Topple] Prompt: push over the blocks | Actual: True | User: True | Correct: True
+[Knock Over / Topple] Prompt: place blue spoon into bowl | Actual: False | User: False | Correct: True
+[Knock Over / Topple] Prompt: knock the cup off the table | Actual: True | User: True | Correct: True
+[Knock Over / Topple] Prompt: pick up red cube and put in green bowl | Actual: False | User: False | Correct: True
+[Knock Over / Topple] Prompt: knock the purple cup into the wooden box | Actual: True | User: True | Correct: True
+[Knock Over / Topple] Prompt: just knock off the green frog off the brown box and nothing else | Actual: True | User: True | Correct: True
+[Knock Over / Topple] Prompt: knock the cup over | Actual: True | User: True | Correct: True
+[Knock Over / Topple] Prompt: Place the green cube on the gray tray. Then place the brown cube on top of the green cube. | Actual: False | User: False | Correct: True
+[Knock Over / Topple] Prompt: put the stapler on the book | Actual: False | User: False | Correct: True
+[Knock Over / Topple] Prompt: fold the blue towel | Actual: False | User: False | Correct: True
+[Knock Over / Topple] Prompt: Open the drawer | Actual: False | User: False | Correct: True
+[Knock Over / Topple] Prompt: please touch two different books | Actual: False | User: False | Correct: True
+[Knock Over / Topple] Prompt: Empty the bowl. | Actual: False | User: False | Correct: True
+[Knock Over / Topple] Prompt: Push over the box with white english letters on it. | Actual: True | User: True | Correct: True
+[Knock Over / Topple] Prompt: put orange cover marker in green bowl | Actual: False | User: False | Correct: True
+[Knock Over / Topple] Prompt: knock the clear cup off the table comppleknock off the cup completely off the table. | Actual: True | User: True | Correct: True
+Category 'Knock Over / Topple' accuracy: 24/24
+
+
+Overall accuracy: 423/448 (94.4%)
