@@ -296,6 +296,182 @@ def terminate_session():
     finally:
         db.close()
 
+# ---------------------------------------------------------------------------
+# 🆕 Canonical-university mapping + helper
+# ---------------------------------------------------------------------------
+UNI_CANONICAL = {
+    "UNIVERSITY OF CALIFORNIA BERKELEY": "Berkeley",
+    "UCB": "Berkeley",
+    "BERKELEY": "Berkeley",
+    "STANFORD": "Stanford",
+    "U PENN": "UPenn",
+    "UNIVERSITY OF PENNSYLVANIA": "UPenn",
+    "UPENN": "UPenn",
+    "UNIVERSITY OF WASHINGTON": "UW",
+    "UNVERSITY OF WASHINGTON": "UW",
+    "UNIVERSITY OF WASHGINTON": "UW",
+    "UW": "UW",
+    "MILA": "UMontreal",
+    "UNIVERSITY MONTREAL": "UMontreal",
+    "UOF MONTREAL": "UMontreal",
+    "YONSEI": "Yonsei",
+    "UT AUSTIN": "UT Austin",
+    "UNIVERSITY OF TEXAS AT AUSTIN": "UT Austin",
+}
+TARGET_UNIS = [
+    "Berkeley",
+    "Stanford",
+    "UW",
+    "UPenn",
+    "UMontreal",
+    "Yonsei",
+    "UT Austin",
+]
+
+
+def canonicalize_uni(raw: str | None) -> str:
+    """Return canonical university name or 'Other'."""
+    if not raw:
+        return "Other"
+    upper = raw.upper().strip()
+    for k, canon in UNI_CANONICAL.items():
+        if k in upper:
+            return canon
+    return "Other"
+
+
+# ---------------------------------------------------------------------------
+# 🆕 Endpoint: list completed/VALID A-B evaluation sessions
+# ---------------------------------------------------------------------------
+@app.route("/list_ab_evaluations", methods=["GET"])
+def list_ab_evaluations():
+    """
+    Return _all_ completed and VALID A/B-evaluation sessions, **newest first**.
+    Only the fields needed by the React UI are included.
+
+    Response JSON schema
+    --------------------
+    {
+        "evaluations": [
+            {
+                "session_id": str,
+                "university": str,
+                "completion_time": "2025-05-24T21:14:03.123456Z",
+                "preference": "A" | "B" | "TIE" | null,
+                "longform_feedback": str | null,
+                "language_instruction": str | null,
+                "policyA": {
+                    "name": str,
+                    "partial_success": float | null,
+                    "wrist_video_url": str | null,
+                    "third_person_video_url": str | null
+                },
+                "policyB": { …same keys as policyA… }
+            },
+            …
+        ]
+    }
+    """
+    db = SessionLocal()
+    try:
+        sessions = (
+            db.query(SessionModel)
+            .filter(
+                SessionModel.evaluation_type == "A/B",
+                SessionModel.session_completion_timestamp.isnot(None),
+                SessionModel.evaluation_notes.isnot(None),
+            )
+            .order_by(SessionModel.session_completion_timestamp.desc())
+            .all()
+        )
+
+        out = []
+        for s in sessions:
+            # Only keep sessions explicitly marked as VALID
+            if "VALID_SESSION" not in s.evaluation_notes.upper():
+                continue
+
+            # ------------------------------------
+            # Parse evaluation_notes
+            # ------------------------------------
+            pref = None
+            feedback = None
+            for line in (s.evaluation_notes or "").splitlines():
+                line = line.strip()
+                if line.upper().startswith("PREFERENCE="):
+                    pref = line.split("=", 1)[1].strip().upper()
+                elif line.upper().startswith("LONGFORM_FEEDBACK="):
+                    feedback = line.split("=", 1)[1].strip()
+
+            # ------------------------------------
+            # Fetch episodes for policies A & B
+            # ------------------------------------
+            episodes = (
+                db.query(EpisodeModel)
+                .filter(
+                    EpisodeModel.session_id == s.id,
+                    EpisodeModel.policy_name.in_([s.policyA_name, s.policyB_name]),
+                )
+                .all()
+            )
+            ep_map = {ep.policy_name: ep for ep in episodes}
+            if s.policyA_name not in ep_map or s.policyB_name not in ep_map:
+                # Incomplete data – skip
+                continue
+
+            def _policy_block(policy_name: str) -> dict:
+                ep = ep_map[policy_name]
+
+                # Pick the preferred third-person camera video
+                cam_type = (ep.third_person_camera_type or "").lower()
+                if "left" in cam_type and ep.gcs_left_cam_path:
+                    third_rel = ep.gcs_left_cam_path
+                elif "right" in cam_type and ep.gcs_right_cam_path:
+                    third_rel = ep.gcs_right_cam_path
+                else:
+                    # Fallback if camera_type missing / misspelled
+                    third_rel = ep.gcs_left_cam_path or ep.gcs_right_cam_path
+
+                def _url(rel_path: str | None) -> str | None:
+                    if not rel_path:
+                        return None
+                    return f"https://storage.googleapis.com/{BUCKET_NAME}/{rel_path}"
+
+                return {
+                    "name": policy_name,
+                    "partial_success": ep.partial_success,
+                    "wrist_video_url": _url(ep.gcs_wrist_cam_path),
+                    "third_person_video_url": _url(third_rel),
+                }
+
+            policyA_block = _policy_block(s.policyA_name)
+            policyB_block = _policy_block(s.policyB_name)
+
+            # Any episode will do for getting the language command
+            lang_instr = ep_map[s.policyA_name].command or ep_map[s.policyB_name].command
+
+            out.append(
+                {
+                    "session_id": str(s.session_uuid),
+                    "university": canonicalize_uni(s.evaluation_location),
+                    "completion_time": s.session_completion_timestamp.isoformat() + "Z",
+                    "evaluator_name": s.evaluator_name,
+                    "preference": pref,
+                    "longform_feedback": feedback,
+                    "language_instruction": lang_instr,
+                    "policyA": policyA_block,
+                    "policyB": policyB_block,
+                }
+            )
+
+        return jsonify({"evaluations": out}), 200
+
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
 
 if __name__ == "__main__":
     # 1) Initialize the database connection
