@@ -3,12 +3,34 @@ import datetime
 import random
 import requests  # Keep for any future expansions, though we removed health checks
 from flask import Flask, request, jsonify
+from flask import send_file
 from google.cloud import storage
 
 from database.schema import PolicyModel, SessionModel, EpisodeModel
 from database.connection import initialize_database_connection
 from logger import logger
 
+import threading, time
+from collections import defaultdict
+import numpy as np, pandas as pd
+from scipy.special import expit
+
+# Make rng
+rng = np.random.default_rng(0)
+
+# Ranking algorithm hyperparameters
+EXCLUDE = {"PI0", "PI0_FAST"}
+HYBRID_NUM_T_BUCKETS = 100
+EM_ITERS = 60
+NUM_RANDOM_SEEDS = 100
+
+# Ranking cache
+LEADERBOARD_CACHE = {"timestamp": None, "board": []}
+LEADERBOARD_LOCK = threading.Lock()
+CACHE_TTL_SECS = 3600   # 1 h
+
+# For displaying the AI generated analysis report
+POLICY_ANALYSIS_PATH = "/home/pranavatreya/real_eval/output/policy_analysis.json"
 
 #  Flask App Setup
 app = Flask(__name__)
@@ -343,7 +365,7 @@ def canonicalize_uni(raw: str | None) -> str:
 # ---------------------------------------------------------------------------
 # 🆕 Endpoint: list completed/VALID A-B evaluation sessions
 # ---------------------------------------------------------------------------
-@app.route("/list_ab_evaluations", methods=["GET"])
+@app.route("/api/list_ab_evaluations", methods=["GET"])
 def list_ab_evaluations():
     """
     Return _all_ completed and VALID A/B-evaluation sessions, **newest first**.
@@ -472,11 +494,327 @@ def list_ab_evaluations():
     finally:
         db.close()
 
+def em_hybrid(df,
+              iters: int = EM_ITERS,
+              step_clip: float = 1.0,
+              l2_psi: float = 1e-2,
+              l2_theta: float = 1e-2,
+              step_decay: float = 0.99,
+              tol: float = 1e-4,
+              n_restarts: int = 1,
+              use_partials: bool = False,
+              sigma_partial: float = 0.3,
+              partial_weight: float = 1.0): # 2.0 if you want to give partials more weight
+    """
+    EM for independent‐solve hybrid BT, with optional partial‐success signals.
+    If use_partials=True, df must contain 'i_partial' and 'j_partial' in [0,1].
+    """
+    # ——— Precompute indices & masks ———
+    pols   = pd.unique(pd.concat([df.i, df.j]))
+    idmap  = {p: k for k, p in enumerate(pols)}
+    P      = len(pols)
+    i_idx  = df.i .map(idmap).to_numpy()
+    j_idx  = df.j .map(idmap).to_numpy()
+    y      = df.y .to_numpy()
+    win    = (y == 2)
+    loss   = (y == 0)
+    tie    = (y == 1)
+
+    if use_partials:
+        s_i_par = df["i_partial"].to_numpy()
+        s_j_par = df["j_partial"].to_numpy()
+
+    best_ll, best_board = -np.inf, None
+
+    for restart in range(n_restarts):
+        rng.bit_generator.advance(restart * 1000)
+
+        # ——— Initialize parameters ———
+        θ = rng.normal(0., .1, P)
+        τ = rng.normal(0., .1, HYBRID_NUM_T_BUCKETS)
+        ψ = np.zeros((P, HYBRID_NUM_T_BUCKETS))
+        π = np.full(HYBRID_NUM_T_BUCKETS, 1 / HYBRID_NUM_T_BUCKETS)
+        ν = 0.5
+
+        def clip_step(x, g, h, clip_val):
+            if abs(h) < 1e-8:
+                return x
+            return x - np.clip(g/h, -clip_val, clip_val)
+
+        # ——— EM loop ———
+        for it in range(iters):
+            curr_clip = step_clip * (step_decay ** it)
+
+            # E-step: compute solve probabilities
+            z_i     = θ[i_idx][:,None] + ψ[i_idx] - τ
+            z_j     = θ[j_idx][:,None] + ψ[j_idx] - τ
+            solve_i = expit(z_i)
+            solve_j = expit(z_j)
+
+            # A/B likelihoods
+            p_win  = solve_i * (1 - solve_j)
+            p_loss = (1 - solve_i) * solve_j
+            p_tie  = 2 * ν * np.sqrt(p_win * p_loss)
+            like_ab = (p_win*win[:,None]
+                     + p_loss*loss[:,None]
+                     + p_tie*tie[:,None])
+
+            # optional partial‐success likelihood
+            if use_partials:
+                err_i  = (s_i_par[:,None] - solve_i)**2
+                err_j  = (s_j_par[:,None] - solve_j)**2
+                like_ps = np.exp(-(err_i + err_j)/(2*sigma_partial**2))**partial_weight
+                like    = like_ab * like_ps
+            else:
+                like = like_ab
+
+            # responsibilities γ[n,t]
+            γ = π * np.clip(like, 1e-12, None)
+            γ /= γ.sum(axis=1, keepdims=True)
+
+            # M-step: update θ
+            θ_prev = θ.copy()
+            for p in range(P):
+                mi = (i_idx == p)
+                mj = (j_idx == p)
+                g = h = 0.0
+
+                for t in range(HYBRID_NUM_T_BUCKETS):
+                    # i-slot
+                    si   = solve_i[mi, t]
+                    sj_i = solve_j[mi, t]
+                    gm   = γ[mi, t]
+                    w, l_, tt = win[mi], loss[mi], tie[mi]
+                    g  += ((w*(1-sj_i) - l_*sj_i + tt*(sj_i-si)) * gm).sum()
+                    h  -= ((si*(1-si) + sj_i*(1-sj_i)) * gm).sum()
+
+                    if use_partials:
+                        g  += partial_weight * (((s_i_par[mi]-si)*si*(1-si)) * gm).sum() / sigma_partial**2
+                        h  -= partial_weight * (((si*(1-si))**2) * gm).sum() / sigma_partial**2
+
+                    # j-slot
+                    si_j = solve_i[mj, t]
+                    sj_j = solve_j[mj, t]
+                    gmj  = γ[mj, t]
+                    wj, lj, tj = win[mj], loss[mj], tie[mj]
+                    g  += ((lj*(1-si_j) - wj*si_j + tj*(si_j-sj_j)) * gmj).sum()
+                    h  -= ((si_j*(1-si_j) + sj_j*(1-sj_j)) * gmj).sum()
+
+                    if use_partials:
+                        g  += partial_weight * (((s_j_par[mj]-sj_j)*sj_j*(1-sj_j)) * gmj).sum() / sigma_partial**2
+                        h  -= partial_weight * (((sj_j*(1-sj_j))**2) * gmj).sum() / sigma_partial**2
+
+                # L2 on θ
+                g -= l2_theta * θ[p]
+                h -= l2_theta
+                θ[p] = clip_step(θ[p], g, h, curr_clip)
+
+            θ -= θ.mean()
+
+            # M-step: update ψ
+            for p in range(P):
+                mi = (i_idx == p)
+                mj = (j_idx == p)
+                for t in range(HYBRID_NUM_T_BUCKETS):
+                    si   = solve_i[mi, t]
+                    sj_i = solve_j[mi, t]
+                    gm   = γ[mi, t]
+                    si_j = solve_i[mj, t]
+                    sj_j = solve_j[mj, t]
+                    gmj  = γ[mj, t]
+
+                    # A/B
+                    w, l_, tt   = win[mi], loss[mi], tie[mi]
+                    wj, lj, tj  = win[mj], loss[mj], tie[mj]
+                    g = ((w*(1-sj_i) - l_*sj_i + tt*(sj_i-si)) * gm).sum() \
+                      + ((lj*(1-si_j) - wj*si_j + tj*(si_j-sj_j)) * gmj).sum()
+                    h = -(((si*(1-si) + sj_i*(1-sj_i)) * gm).sum()
+                         + ((si_j*(1-si_j) + sj_j*(1-sj_j)) * gmj).sum())
+
+                    # partials
+                    if use_partials:
+                        g  += partial_weight * (((s_i_par[mi]-si)*si*(1-si)) * gm).sum() / sigma_partial**2
+                        h  -= partial_weight * (((si*(1-si))**2) * gm).sum() / sigma_partial**2
+                        g  += partial_weight * (((s_j_par[mj]-sj_j)*sj_j*(1-sj_j)) * gmj).sum() / sigma_partial**2
+                        h  -= partial_weight * (((sj_j*(1-sj_j))**2) * gmj).sum() / sigma_partial**2
+
+                    # L2 on ψ
+                    g += l2_psi * ψ[p, t]
+                    h -= l2_psi
+                    ψ[p, t] = clip_step(ψ[p, t], g, h, curr_clip)
+
+            ψ -= ψ.mean(axis=1, keepdims=True)
+
+            # M-step: update τ
+            for t in range(HYBRID_NUM_T_BUCKETS):
+                si_t = solve_i[:, t]
+                sj_t = solve_j[:, t]
+                g    = (γ[:,t]*(si_t + sj_t - 1.0)).sum()
+                h    = - (γ[:,t]*(si_t*(1-si_t) + sj_t*(1-sj_t))).sum()
+                τ[t] = clip_step(τ[t], g, h, curr_clip)
+            τ -= τ.mean()
+
+            # update π, ν
+            π = γ.mean(axis=0); π /= π.sum()
+            ν = 0.5 * ((p_tie*γ).sum() / max((p_win*γ).sum(), 1e-9))
+
+            if np.max(np.abs(θ - θ_prev)) < tol:
+                break
+
+        # finalize restart
+        mixlik = (π * like).sum(axis=1)
+        ll_cur = np.sum(np.log(mixlik + 1e-12))
+        board  = pd.DataFrame({"policy": pols, "score": θ})\
+                     .sort_values("score", ascending=False)\
+                     .reset_index(drop=True)
+        if ll_cur > best_ll:
+            best_ll, best_board = ll_cur, board
+
+    return best_board
+
+def _recompute_leaderboard():
+    """
+    Build preference dataframe → run EM hybrid NUM_RANDOM_SEEDS times →
+    return list[ {policy, score(<mean>), std} ] sorted by score desc.
+    """
+    db = SessionLocal()
+    try:
+        # ---------- build preference dataframe ----------
+        pairs, eps_lookup = [], {}
+
+        eps_ab = (
+            db.query(EpisodeModel)
+              .filter(EpisodeModel.feedback.ilike("%; %"))
+              .with_entities(
+                  EpisodeModel.session_id,
+                  EpisodeModel.feedback,
+                  EpisodeModel.partial_success,
+              )
+              .all()
+        )
+        for sid, fb, ps in eps_ab:
+            letter = (fb or "").strip().upper().split(";", 1)[0]
+            if letter in ("A", "B"):
+                eps_lookup[(sid, letter)] = ps
+
+        sessions = (
+            db.query(SessionModel)
+              .filter(
+                  SessionModel.evaluation_type == "A/B",
+                  SessionModel.session_completion_timestamp.isnot(None),
+                  SessionModel.evaluation_notes.isnot(None),
+              )
+              .all()
+        )
+
+        for s in sessions:
+            if "VALID_SESSION" not in (s.evaluation_notes or "").upper():
+                continue
+            A, B = s.policyA_name.strip(), s.policyB_name.strip()
+            if A.upper() in EXCLUDE or B.upper() in EXCLUDE:
+                continue
+
+            pref = None
+            for line in (s.evaluation_notes or "").splitlines():
+                t = line.strip().upper()
+                if t.startswith("PREFERENCE="):
+                    pref = {"A": 2, "B": 0, "TIE": 1}.get(
+                        t.split("=", 1)[1], None
+                    )
+                    break
+            if pref is None:
+                continue
+
+            sid = s.id
+            i_par = eps_lookup.get((sid, "A"), np.nan)
+            j_par = eps_lookup.get((sid, "B"), np.nan)
+            pairs.append((A, B, pref, i_par, j_par))
+
+        pref_df = pd.DataFrame(
+            pairs, columns=["i", "j", "y", "i_partial", "j_partial"]
+        )
+        if pref_df.empty:
+            return []
+
+        # ---------- run EM hybrid multiple seeds ----------
+        from collections import defaultdict
+
+        score_runs = defaultdict(list)
+
+        for seed in range(NUM_RANDOM_SEEDS):
+            # reset global rng used inside em_hybrid
+            global rng
+            rng = np.random.default_rng(seed)
+
+            board_run = em_hybrid(
+                pref_df,
+                use_partials=False,
+                n_restarts=1,   # one restart per seed; we are averaging
+            )
+            for _, row in board_run.iterrows():
+                score_runs[row.policy].append(row.score)
+
+        # ---------- mean & std ----------
+        board_avg = [
+            {
+                "policy": pol,
+                "score": float(np.mean(scores)),
+                "std": float(np.std(scores, ddof=1)),
+            }
+            for pol, scores in score_runs.items()
+        ]
+        board_avg.sort(key=lambda d: d["score"], reverse=True)
+
+        # round for transmission
+        for d in board_avg:
+            d["score"] = round(d["score"], 3)
+            d["std"] = round(d["std"], 3)
+
+        return board_avg
+
+    finally:
+        db.close()
+
+def _refresh_loop():
+    while True:
+        try:
+            board = _recompute_leaderboard()
+            with LEADERBOARD_LOCK:
+                LEADERBOARD_CACHE["board"] = board
+                LEADERBOARD_CACHE["timestamp"] = datetime.datetime.utcnow()
+            logger.info("Leaderboard cache refreshed; {} policies".format(len(board)))
+        except Exception as e:
+            logger.error(f"Leaderboard recompute failed: {e}")
+        time.sleep(CACHE_TTL_SECS)
+
+@app.route("/api/leaderboard", methods=["GET"])
+def get_leaderboard():
+    with LEADERBOARD_LOCK:
+        data = {
+            "last_updated": (LEADERBOARD_CACHE["timestamp"].isoformat() + "Z")
+                            if LEADERBOARD_CACHE["timestamp"] else None,
+            "board": LEADERBOARD_CACHE["board"],
+        }
+    return jsonify(data), 200
+
+@app.route("/api/policy_analysis.json", methods=["GET"])
+def serve_policy_analysis():
+    """
+    Serve the cached AI-generated policy analysis report.
+    """
+    try:
+        return send_file(POLICY_ANALYSIS_PATH, mimetype="application/json")
+    except Exception as e:
+        logger.error(f"Cannot serve policy_analysis.json: {e}")
+        return jsonify({"error": "analysis report not available"}), 404
 
 if __name__ == "__main__":
     # 1) Initialize the database connection
     database_url: str = "postgresql://centralserver:m3lxcf830x20g4@localhost:5432/real_eval"
     SessionLocal = initialize_database_connection(database_url)
     logger.info(f"Database connection to {database_url} initialized.")
+
+    # Start the leaderboard computing thread
+    threading.Thread(target=_refresh_loop, daemon=True).start()
 
     app.run(host="0.0.0.0", port=5000, debug=True)
