@@ -34,13 +34,14 @@ Usage:
 """
 
 # For the paper, make session cutoff time of April 30, 2025 18:00 UTC or April 30, 2025, 11:00 AM PDT
-SESSION_CUTOFF_TIME = datetime(2025, 4, 30, 18, 0, 0, tzinfo=timezone.utc)
+SESSION_CUTOFF_TIME = datetime(2025, 5, 30, 18, 0, 0, tzinfo=timezone.utc)
 
 BASE_DIR = os.path.dirname(__file__)
 ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, ".."))
 OUTPUT_DIR = os.path.abspath(os.path.join(ROOT_DIR, "output"))
 ANALYSIS_JSON_PATH = os.path.join(OUTPUT_DIR, "policy_analysis.json")
 SIMPLE_ANALYSIS_JSON_PATH = os.path.join(OUTPUT_DIR, "simple_policy_analysis.json")
+ROBO_ARENA_JSONL_PATH = os.path.join(OUTPUT_DIR, "robo_arena.jsonl")
 
 app = Flask(
     __name__,
@@ -515,6 +516,32 @@ class TaskSceneMetadata(BaseModel):
 ALL_TASK_CATEGORIES = {category.value for category in TaskCategory}
 
 
+@dataclass(frozen=True)
+class H2HCamera:
+    name: str
+    """Name of the camera"""
+
+    camera_path: str
+    """Path of the camera"""
+
+
+@dataclass(frozen=True)
+class H2HRollout:
+    name: str
+    cameras: list[H2HCamera]
+    partial_success_score: float
+
+
+@dataclass(frozen=True)
+class HeadToHeadExample:
+    id: str
+    task: str
+    won: str
+    policy_a: H2HRollout
+    policy_b: H2HRollout
+    metadata: dict | None = None
+
+
 def get_all_valid_policies() -> dict[str, Policy]:
     """
     Returns all valid policies as a dict where the key is the policy name and the value is the policy
@@ -924,6 +951,95 @@ def compare_best_against_others(all_valid_policies: dict[str, Policy]) -> None:
         logger.info(f"  all others (excl paligemma_binning): ({len(data['others_excl_paligemma']):>3} eps) {safe_avg(data['others_excl_paligemma'])}\n")
 
 
+def get_all_head_to_head(policies: dict[str, Policy]) -> list[HeadToHeadExample]:
+    """
+    Return all complete head-to-head examples from policy episodes.
+    Each example must have exactly two corresponding episodes (policy A and policy B) from the same session.
+    """
+    # First pass: collect all head-to-head episodes, grouped by session ID
+    session_to_episodes: dict[str, list[Episode]] = defaultdict(list)
+
+    for policy in policies.values():
+        for episode in policy.get_all_head_to_head_episodes():
+            session_to_episodes[episode.session.id].append(episode)
+
+    results: list[HeadToHeadExample] = []
+
+    # Second pass: validate and construct HeadToHeadExample
+    for session_id, episodes in session_to_episodes.items():
+        if len(episodes) != 2:
+            logger.warning(
+                f"Session {session_id} has {len(episodes)} episodes, expected 2 for head-to-head evaluation."
+            )
+            continue
+
+        ep_a, ep_b = episodes
+        prompt = ep_a.session.prompt.strip()
+
+        # Confirm unique policies
+        policy_names = {ep_a.head_to_head.perspective_policy, ep_b.head_to_head.perspective_policy}
+        assert len(policy_names) == 2, f"Non-unique policies in session {session_id}: {policy_names}"
+
+        # Assign based on who was policy A
+        if ep_a.head_to_head.was_policy_a:
+            policy_a, policy_b = ep_a, ep_b
+        else:
+            policy_a, policy_b = ep_b, ep_a
+
+        won = "tied"
+        if policy_a.head_to_head.won:
+            won = "A"
+        elif policy_b.head_to_head.won:
+            won = "B"
+
+        results.append(
+            HeadToHeadExample(
+                id=f"robo-arena-{str(session_id)}",
+                task=prompt,
+                policy_a=H2HRollout(
+                    name=policy_a.head_to_head.perspective_policy,
+                    cameras=[
+                        H2HCamera(
+                            name="left",
+                            camera_path=policy_a.cameras.left_local_path,
+                        ),
+                        H2HCamera(
+                            name="right",
+                            camera_path=policy_a.cameras.right_local_path,
+                        ),
+                        H2HCamera(
+                            name="wrist",
+                            camera_path=policy_a.cameras.wrist_local_path,
+                        ),
+                    ],
+                    partial_success_score=policy_a.partial_success_score,
+                ),
+                policy_b=H2HRollout(
+                    name=policy_b.head_to_head.perspective_policy,
+                    cameras=[
+                        H2HCamera(
+                            name="left",
+                            camera_path=policy_b.cameras.left_local_path,
+                        ),
+                        H2HCamera(
+                            name="right",
+                            camera_path=policy_b.cameras.right_local_path,
+                        ),
+                        H2HCamera(
+                            name="wrist",
+                            camera_path=policy_b.cameras.wrist_local_path,
+                        ),
+                    ],
+                    partial_success_score=policy_b.partial_success_score,
+                ),
+                won=won,
+                metadata=policy_a.metadata or policy_b.metadata,
+            )
+        )
+
+    return results
+
+
 def compare_head_to_head_win_rates(all_valid_policies: dict[str, Policy]) -> None:
     outcomes_by_category = defaultdict(lambda: {
         "pi0_fast_droid": {"wins": 0, "total": 0},
@@ -1050,6 +1166,13 @@ if __name__ == "__main__":
         else:
             compare_best_against_others(valid_policies)
             compare_head_to_head_win_rates(valid_policies)
+            all_head_to_head = get_all_head_to_head(valid_policies)
+
+            # Save the head-to-head examples the JSONL path
+            with open(ROBO_ARENA_JSONL_PATH, "w") as f:
+                for example in all_head_to_head:
+                    f.write(json.dumps(asdict(example)) + "\n")
+                logger.info(f"Saved head-to-head examples to {ROBO_ARENA_JSONL_PATH}.")
 
             # Just dump the policies with their episodes that have head-to-head evaluations
             with open(SIMPLE_ANALYSIS_JSON_PATH, "w") as f:
