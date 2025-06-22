@@ -537,6 +537,7 @@ class HeadToHeadExample:
     id: str
     task: str
     won: str
+    explanation: str
     policy_a: H2HRollout
     policy_b: H2HRollout
     metadata: dict | None = None
@@ -1033,6 +1034,7 @@ def get_all_head_to_head(policies: dict[str, Policy]) -> list[HeadToHeadExample]
                     partial_success_score=policy_b.partial_success_score,
                 ),
                 won=won,
+                explanation=ep_a.head_to_head.ab_notes,
                 metadata=policy_a.metadata or policy_b.metadata,
             )
         )
