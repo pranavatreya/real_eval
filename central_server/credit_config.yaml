@@ -1,0 +1,11 @@
+# ------------------------------------------------------------------
+# Evaluation-credit hyper-parameters
+# ------------------------------------------------------------------
+base_credit_default: 20        # credit an ordinary new user receives
+base_credit_corl:    20        # credit a CoRL-challenge participant receives
+
+weekly_increment_default: 20    # weekly drip for ordinary users
+weekly_increment_corl:    20   # weekly drip for CoRL participants
+
+# UCB up-sampling: policies with < N evaluations get a bonus
+ucb_times_threshold: 100       # stop applying UCB bonus after this many evals
