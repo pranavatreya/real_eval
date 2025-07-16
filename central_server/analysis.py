@@ -536,10 +536,10 @@ class H2HRollout:
 class HeadToHeadExample:
     id: str
     task: str
-    won: str
-    explanation: str
-    policy_a: H2HRollout
-    policy_b: H2HRollout
+    won: str | None
+    explanation: str | None
+    policy_a: H2HRollout | None
+    policy_b: H2HRollout | None
     metadata: dict | None = None
 
 
@@ -1038,6 +1038,39 @@ def get_all_head_to_head(policies: dict[str, Policy]) -> list[HeadToHeadExample]
                 metadata=policy_a.metadata or policy_b.metadata,
             )
         )
+
+    # Add all episodes that do not have head-to-head evaluations
+    for policy in policies.values():
+        for episode in policy.episodes:
+            if not episode.head_to_head:
+                results.append(
+                    HeadToHeadExample(
+                        id=f"robo-arena-{str(episode.session.id)}-{policy.name}",
+                        task=episode.session.prompt.strip(),
+                        policy_a=H2HRollout(
+                            name=policy.name,
+                            cameras=[
+                                H2HCamera(
+                                    name="left",
+                                    camera_path=episode.cameras.left_local_path,
+                                ),
+                                H2HCamera(
+                                    name="right",
+                                    camera_path=episode.cameras.right_local_path,
+                                ),
+                                H2HCamera(
+                                    name="wrist",
+                                    camera_path=episode.cameras.wrist_local_path,
+                                ),
+                            ],
+                            partial_success_score=episode.partial_success_score,
+                        ),
+                        policy_b=None,  # No second policy
+                        won=None,  # No head-to-head evaluation
+                        explanation=None,
+                        metadata=episode.metadata,
+                    )
+                )
 
     return results
 
