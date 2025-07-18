@@ -33,8 +33,7 @@ Usage:
     --skip-refresh: Skips recomputing the analysis and use the cached version of the analysis JSON on disk.
 """
 
-# For the paper, make session cutoff time of April 30, 2025 18:00 UTC or April 30, 2025, 11:00 AM PDT
-SESSION_CUTOFF_TIME = datetime(2025, 5, 30, 18, 0, 0, tzinfo=timezone.utc)
+SESSION_CUTOFF_TIME = datetime(2025, 7, 17, 18, 0, 0, tzinfo=timezone.utc)
 
 BASE_DIR = os.path.dirname(__file__)
 ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, ".."))
@@ -261,8 +260,9 @@ class Episode:
         try:
             # We use GPT-4.5 since it is a frontier model for image understanding
             # https://crfm.stanford.edu/helm/vhelm/v2.1.2/#/leaderboard/visual_perception
+            # Update 7/14: gpt-4.1-2025-04-14 is the recommended replacement for gpt-4.5-preview-2025-02-27
             response, cached = openai_client.run_image_inference(
-                model="gpt-4.5-preview-2025-02-27",
+                model="gpt-4.1-2025-04-14",
                 image_paths=image_paths,
                 text=prompt,
                 temperature=0,
@@ -383,7 +383,7 @@ class Episode:
         for attempt in range(max_retries):
             try:
                 parsed, cached = openai_client.run_image_inference_structured(
-                    model="gpt-4.5-preview-2025-02-27",
+                    model="gpt-4.1-2025-04-14",
                     image_paths=image_paths,
                     text=prompt,
                     expected_structure=TaskSceneMetadata,
@@ -397,7 +397,9 @@ class Episode:
 
                 # Validate fields
                 if metadata["task_category"] not in ALL_TASK_CATEGORIES:
-                    raise ValueError(f"Invalid task_category: {metadata['task_category']}")
+                    raise ValueError(
+                        f"Invalid task_category: {metadata['task_category']}"
+                    )
 
                 for field in [
                     "clear_camera_view",
@@ -407,7 +409,9 @@ class Episode:
                     "reasoning_required",
                 ]:
                     if not isinstance(metadata[field], bool):
-                        raise TypeError(f"Field {field} must be a boolean, got {type(metadata[field])} instead.")
+                        raise TypeError(
+                            f"Field {field} must be a boolean, got {type(metadata[field])} instead."
+                        )
 
                 # If all checks pass
                 self.metadata = metadata
@@ -555,7 +559,9 @@ def get_all_valid_policies() -> dict[str, Policy]:
         .filter(PolicyModel.unique_policy_name.notin_(["PI0", "PI0_FAST"]))
         .all()
     )
-    logger.info(f"Found {len(policies)} valid policies.")
+    logger.info(
+        f"Found {len(policies)} valid policies: {', '.join(policy.unique_policy_name for policy in policies)}"
+    )
 
     return {
         policy.unique_policy_name: Policy(name=policy.unique_policy_name)
@@ -589,18 +595,25 @@ def populate_policy_episodes(policies: dict[str, Policy], gcs_bucket: str) -> No
     db = SessionLocal()
 
     # Gather all valid evaluation sessions. that are before the cutoff time
-    # Valid eval sessions have VALID_SESSION: in the beginning of `evaluation_notes`
-    # and check that episodes is not empty
+    # and that have episodes
     sessions = (
         db.query(SessionModel)
         .filter(
-            SessionModel.evaluation_notes.like("VALID_SESSION:%"),
             SessionModel.episodes.any(),
             SessionModel.session_creation_timestamp <= SESSION_CUTOFF_TIME,
         )
         .order_by(SessionModel.session_uuid)
         .all()
     )
+
+    # Filter out invalid sessions
+    sessions = [
+        session
+        for session in sessions
+        if "VALID_SESSION" in session.evaluation_notes
+        and "PREFERENCE=" in session.evaluation_notes
+        and "LONGFORM_FEEDBACK=" in session.evaluation_notes
+    ]
     logger.info(f"Found {len(sessions)} valid evaluation sessions.")
 
     for session_row in tqdm(sessions):
@@ -703,7 +716,9 @@ def analyze_head_to_head_evaluations_per_policy(policies: dict[str, Policy]) -> 
         }
 
         # Construct the prompt to get the summary
-        logger.info(f"Generating full report for policy {policy_name} with {len(reports)} head-to-head evaluations.")
+        logger.info(
+            f"Generating full report for policy {policy_name} with {len(reports)} head-to-head evaluations."
+        )
         episode_text = "\n\n".join(
             f"========== Episode Report #{i + 1} ==========\n{report}"
             for i, report in enumerate(reports)
@@ -767,7 +782,7 @@ The individual episode reports are as follows:
             model="o3-2025-04-16",
             messages=[{"role": "user", "content": prompt}],
             reasoning_effort="high",
-            max_completion_tokens=100_000,
+            max_completion_tokens=50_000,
         )
         if cached:
             logger.info("Full report was generated before.")
@@ -860,7 +875,9 @@ def debug(task_category_to_commands: dict[str, set[str]], output_path: str) -> N
     total = 0
     correct = 0
 
-    print("\nStarting task category verification test. Answer y (yes) or n (no) for each prompt.\n")
+    print(
+        "\nStarting task category verification test. Answer y (yes) or n (no) for each prompt.\n"
+    )
     for target_category in all_categories:
         print(f"\n--- Testing category: {target_category} ---")
         in_category = task_category_to_commands[target_category]
@@ -873,8 +890,9 @@ def debug(task_category_to_commands: dict[str, set[str]], output_path: str) -> N
 
         n_in = min(50, len(in_category))
         n_out = min(n_in, len(out_category))
-        examples = [(cmd, True) for cmd in random.sample(list(in_category), n_in)] + \
-                   [(cmd, False) for cmd in random.sample(list(out_category), n_out)]
+        examples = [(cmd, True) for cmd in random.sample(list(in_category), n_in)] + [
+            (cmd, False) for cmd in random.sample(list(out_category), n_out)
+        ]
         random.shuffle(examples)
 
         category_total = 0
@@ -883,12 +901,16 @@ def debug(task_category_to_commands: dict[str, set[str]], output_path: str) -> N
         for cmd, is_in_category in examples:
             print(f"\nTask description: {cmd}")
             while True:
-                answer = input("Is this '{0}'? (y/n): ".format(target_category)).strip().lower()
+                answer = (
+                    input("Is this '{0}'? (y/n): ".format(target_category))
+                    .strip()
+                    .lower()
+                )
                 if answer in ("y", "n"):
                     break
                 print("Please enter 'y' or 'n'.")
 
-            user_thinks_in_category = (answer == "y")
+            user_thinks_in_category = answer == "y"
             match = user_thinks_in_category == is_in_category
             total += 1
             category_total += 1
@@ -900,10 +922,16 @@ def debug(task_category_to_commands: dict[str, set[str]], output_path: str) -> N
                 f"[{target_category}] Prompt: {cmd} | Actual: {is_in_category} | User: {user_thinks_in_category} | Correct: {match}"
             )
 
-        print(f"\nAccuracy for '{target_category}': {category_correct}/{category_total} ({category_correct / category_total:.1%})")
-        log_lines.append(f"Category '{target_category}' accuracy: {category_correct}/{category_total}\n")
+        print(
+            f"\nAccuracy for '{target_category}': {category_correct}/{category_total} ({category_correct / category_total:.1%})"
+        )
+        log_lines.append(
+            f"Category '{target_category}' accuracy: {category_correct}/{category_total}\n"
+        )
 
-    print(f"\n== Final accuracy across all categories: {correct}/{total} ({correct / total:.1%}) ==")
+    print(
+        f"\n== Final accuracy across all categories: {correct}/{total} ({correct / total:.1%}) =="
+    )
     log_lines.append(f"\nOverall accuracy: {correct}/{total} ({correct / total:.1%})")
 
     with open(log_path, "w") as log_file:
@@ -925,8 +953,9 @@ def compare_best_against_others(all_valid_policies: dict[str, Policy]) -> None:
 
     for policy in all_valid_policies.values():
         for episode in policy.episodes:
-            assert episode.metadata and "task_category" in episode.metadata, \
-                f"Missing metadata for episode in policy {policy.name}, session {episode.session.id}"
+            assert (
+                episode.metadata and "task_category" in episode.metadata
+            ), f"Missing metadata for episode in policy {policy.name}, session {episode.session.id}"
 
             category = episode.metadata["task_category"]
             score = episode.partial_success_score
@@ -947,9 +976,15 @@ def compare_best_against_others(all_valid_policies: dict[str, Policy]) -> None:
             return f"{mean(scores):.3f}" if scores else "N/A"
 
         logger.info(f"{category}:")
-        logger.info(f"  pi0_fast_droid:                        ({len(data['pi0_fast_droid']):>3} eps) {safe_avg(data['pi0_fast_droid'])}")
-        logger.info(f"  all other policies:                   ({len(data['others_incl_paligemma']):>3} eps) {safe_avg(data['others_incl_paligemma'])}")
-        logger.info(f"  all others (excl paligemma_binning): ({len(data['others_excl_paligemma']):>3} eps) {safe_avg(data['others_excl_paligemma'])}\n")
+        logger.info(
+            f"  pi0_fast_droid:                        ({len(data['pi0_fast_droid']):>3} eps) {safe_avg(data['pi0_fast_droid'])}"
+        )
+        logger.info(
+            f"  all other policies:                   ({len(data['others_incl_paligemma']):>3} eps) {safe_avg(data['others_incl_paligemma'])}"
+        )
+        logger.info(
+            f"  all others (excl paligemma_binning): ({len(data['others_excl_paligemma']):>3} eps) {safe_avg(data['others_excl_paligemma'])}\n"
+        )
 
 
 def get_all_head_to_head(policies: dict[str, Policy]) -> list[HeadToHeadExample]:
@@ -978,8 +1013,13 @@ def get_all_head_to_head(policies: dict[str, Policy]) -> list[HeadToHeadExample]
         prompt = ep_a.session.prompt.strip()
 
         # Confirm unique policies
-        policy_names = {ep_a.head_to_head.perspective_policy, ep_b.head_to_head.perspective_policy}
-        assert len(policy_names) == 2, f"Non-unique policies in session {session_id}: {policy_names}"
+        policy_names = {
+            ep_a.head_to_head.perspective_policy,
+            ep_b.head_to_head.perspective_policy,
+        }
+        assert (
+            len(policy_names) == 2
+        ), f"Non-unique policies in session {session_id}: {policy_names}"
 
         # Assign based on who was policy A
         if ep_a.head_to_head.was_policy_a:
@@ -1076,16 +1116,20 @@ def get_all_head_to_head(policies: dict[str, Policy]) -> list[HeadToHeadExample]
 
 
 def compare_head_to_head_win_rates(all_valid_policies: dict[str, Policy]) -> None:
-    outcomes_by_category = defaultdict(lambda: {
-        "pi0_fast_droid": {"wins": 0, "total": 0},
-        "others_incl_paligemma": {"wins": 0, "total": 0},
-        "others_excl_paligemma": {"wins": 0, "total": 0},
-    })
+    outcomes_by_category = defaultdict(
+        lambda: {
+            "pi0_fast_droid": {"wins": 0, "total": 0},
+            "others_incl_paligemma": {"wins": 0, "total": 0},
+            "others_excl_paligemma": {"wins": 0, "total": 0},
+        }
+    )
 
     for policy in all_valid_policies.values():
         for episode in policy.get_all_head_to_head_episodes():
             if not episode.metadata or "task_category" not in episode.metadata:
-                raise ValueError(f"Missing task_category in episode metadata for policy {policy.name}, session {episode.session.id}")
+                raise ValueError(
+                    f"Missing task_category in episode metadata for policy {policy.name}, session {episode.session.id}"
+                )
 
             category = episode.metadata["task_category"]
             perspective = episode.head_to_head.perspective_policy
@@ -1101,9 +1145,13 @@ def compare_head_to_head_win_rates(all_valid_policies: dict[str, Policy]) -> Non
                     outcomes_by_category[category]["others_incl_paligemma"]["wins"] += 1
 
                 if perspective != "paligemma_binning_droid":
-                    outcomes_by_category[category]["others_excl_paligemma"]["total"] += 1
+                    outcomes_by_category[category]["others_excl_paligemma"][
+                        "total"
+                    ] += 1
                     if won:
-                        outcomes_by_category[category]["others_excl_paligemma"]["wins"] += 1
+                        outcomes_by_category[category]["others_excl_paligemma"][
+                            "wins"
+                        ] += 1
 
     logger.info("\nHead-to-head win rates by task category:\n")
 
@@ -1111,12 +1159,20 @@ def compare_head_to_head_win_rates(all_valid_policies: dict[str, Policy]) -> Non
         data = outcomes_by_category[category]
 
         def fmt(wins: int, total: int) -> str:
-            return f"{wins}/{total} ({(wins / total * 100):.1f}%)" if total > 0 else "N/A"
+            return (
+                f"{wins}/{total} ({(wins / total * 100):.1f}%)" if total > 0 else "N/A"
+            )
 
         logger.info(f"{category}:")
-        logger.info(f"  pi0_fast_droid:                        {fmt(**data['pi0_fast_droid'])}")
-        logger.info(f"  all other policies:                   {fmt(**data['others_incl_paligemma'])}")
-        logger.info(f"  all others (excl paligemma_binning): {fmt(**data['others_excl_paligemma'])}\n")
+        logger.info(
+            f"  pi0_fast_droid:                        {fmt(**data['pi0_fast_droid'])}"
+        )
+        logger.info(
+            f"  all other policies:                   {fmt(**data['others_incl_paligemma'])}"
+        )
+        logger.info(
+            f"  all others (excl paligemma_binning): {fmt(**data['others_excl_paligemma'])}\n"
+        )
 
 
 if __name__ == "__main__":
